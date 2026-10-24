@@ -38,6 +38,7 @@ function remember(value: string | null) {
     /* Play remains available without refresh recovery. */
   }
 }
+const ignoreView = () => {};
 function App() {
   const [renderActive, setRenderActive] = useState(true);
   const [navigation, setNavigation] = useState(false);
@@ -225,7 +226,7 @@ function App() {
           state={renderState}
           target={target}
           onTarget={setTarget}
-          onView={setView}
+          onView={navigation ? setView : ignoreView}
           room={room}
           interact={interact}
           quality={quality}

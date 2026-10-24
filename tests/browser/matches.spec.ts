@@ -3,6 +3,7 @@ import sharp from "sharp";
 import {
   UNIVERSES,
   universe,
+  door,
   type Point,
   type Interactable,
 } from "../../packages/shared/src/universes";
@@ -148,6 +149,7 @@ for (const n of [2, 3, 4, 5, 6])
       travelers: Traveler[] = [],
       runtimeErrors: string[] = [], networkEvents: string[] = [];
     let completed = false;
+    const observed: string[] = [];
     let profiler: CDPSession | undefined;
     try {
       let invite = "";
@@ -211,6 +213,7 @@ for (const n of [2, 3, 4, 5, 6])
             .click();
           await expect(phase(page)).toContainText("WAITING");
         }
+        observed.push("joined:"+i);
         travelers.push({
           page,
           angle: 0.1,
@@ -221,6 +224,11 @@ for (const n of [2, 3, 4, 5, 6])
         });
       }
       const host = travelers[0];
+      await expect(host.page.locator('.roster .player')).toHaveCount(n);
+      for(const t of travelers) await expect(host.page.locator('.roster')).toContainText(t.name);
+      await renderedWorld(host.page,info,'six-door-atrium-'+n);
+      observed.push('lobby-count-and-webgl:'+n);
+      let missingWorld: (typeof UNIVERSES)[number] | undefined;
       await host.page
         .getByRole("button", { name: "Begin the match →" })
         .click();
@@ -233,6 +241,7 @@ for (const n of [2, 3, 4, 5, 6])
         await act(t, u.mechanisms[0]);
         await expect(t.page.locator(".toast")).toContainText("activated");
         await act(t, u.anchors[0], true);
+        observed.push("rendered-and-hidden:"+u.id);
         await t.page
           .getByText("Approved room customization", { exact: true })
           .click();
@@ -265,13 +274,32 @@ for (const n of [2, 3, 4, 5, 6])
           expect(t.visited.has(name)).toBe(false);
           t.visited.add(name);
           const u = UNIVERSES.find((u) => u.name === name)!;
+          if(n===2 && t===host && round===n-1) {
+            missingWorld=u;
+            observed.push('deliberately-missing:'+u.id);
+            continue;
+          }
           await act(t, u.anchors[0]);
+          observed.push('key-round:'+round+':'+t.name);
           await expect(t.page.locator(".inventory .found")).toHaveCount(round);
           await t.page.keyboard.press("e");
           await expect(t.page.locator(".inventory .found")).toHaveCount(round);
         }
       }
-      await expect(phase(host.page)).toContainText("FINALE");
+      await expect(phase(host.page)).toContainText("FINALE",{timeout:150000});
+      if(missingWorld) {
+        const entrance=door(missingWorld.id);
+        await move(host,{...entrance,y:0},2.5);
+        await aim(host,{...entrance,y:0.5});
+        await expect(host.page.getByRole('button',{name:new RegExp('E.*'+missingWorld.name)})).toBeVisible();
+        await host.page.keyboard.press('e');
+        await expect(host.page.locator('h2')).toHaveText(missingWorld.name);
+        await act(host,missingWorld.anchors[0]);
+        await expect(host.page.locator('.inventory .found')).toHaveCount(n-1);
+        await host.page.getByRole('button',{name:'Return to atrium ↩'}).click();
+        await expect(host.page.locator('h2')).toHaveText('All keys lead home.');
+        observed.push('finale-revisit-and-missing-key');
+      }
       await move(host, { x: 0, y: 0, z: 0 }, 2);
       await aim(host, { x: 0, y: 0, z: 0 });
       await expect(
@@ -305,6 +333,7 @@ for (const n of [2, 3, 4, 5, 6])
         }),
         contentType: "application/json",
       });
+      observed.push("portal-winner-and-replay");
       completed = true;
     } finally {
       if (profiler) {
@@ -313,6 +342,7 @@ for (const n of [2, 3, 4, 5, 6])
           if(data) await info.attach('admission-cpu-profile',{body:JSON.stringify(data),contentType:'application/json'});
         } catch { /* Capture must not mask the original acceptance failure. */ }
       }
+      await info.attach("observed-milestones", {body:JSON.stringify(observed),contentType:"application/json"});
       await info.attach("network-events", { body: JSON.stringify(networkEvents), contentType: "application/json" });
       await info.attach("console-errors", { body: JSON.stringify(runtimeErrors), contentType: "application/json" });
       if (!completed)
