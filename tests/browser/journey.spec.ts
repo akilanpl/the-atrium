@@ -66,8 +66,19 @@ test("cinematic journey: mobile, reduced motion and renderer fallback", async ({
   await page.setViewportSize({ width: 390, height: 844 });
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.addInitScript(() => {
-    HTMLCanvasElement.prototype.getContext = (() =>
-      null) as typeof HTMLCanvasElement.prototype.getContext;
+    const original = HTMLCanvasElement.prototype.getContext;
+    HTMLCanvasElement.prototype.getContext = function (
+      type: string,
+      options?: unknown,
+    ) {
+      if (
+        type === "webgl" ||
+        type === "webgl2" ||
+        type === "experimental-webgl"
+      )
+        return null;
+      return original.call(this, type as "2d", options);
+    } as typeof HTMLCanvasElement.prototype.getContext;
   });
   await page.goto("/");
   await expect(
