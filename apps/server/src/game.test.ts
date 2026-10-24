@@ -196,3 +196,33 @@ test("finale has six separate equally distant spawn points, no overlap, and mean
   assert.equal(g.winner, "p2");
   assert.equal(g.outcome, "timeout");
 });
+
+test('100–350ms delayed and reordered input remains bounded and stale replay cannot move a new match', () => {
+  const g = setup();
+  g.start('p0', 1000, 9);
+  const p = g.player('p0');
+  const pending = Array.from({length: 20}, (_, i) => ({
+    at: 1050 + i * 50 + (i % 3 === 0 ? 350 : 100),
+    command: { epoch: g.epoch, seq: i + 1, x: 1, z: 0, yaw: 0, run: true, jump: false, descend: false },
+  })).sort((a,b) => a.at-b.at);
+  for (let now = 1050; now <= 3000; now += 50) {
+    while (pending.length && pending[0].at <= now) {
+      const packet = pending.shift()!;
+      g.setInput('p0', packet.command, now);
+    }
+    const previous = { x:p.x, y:p.y, z:p.z };
+    g.tick(now);
+    assert.ok(Math.hypot(p.x-previous.x,p.z-previous.z) <= 0.36, 'no burst teleport after delivery');
+    assert.ok(Number.isFinite(p.y) && p.y >= 0);
+    assert.ok(Math.hypot(p.vx,p.vz) <= 7.08);
+  }
+  assert.ok(Math.abs(p.vx) < 0.01, 'dropped release is bounded by deadman');
+  const staleEpoch = g.epoch;
+  g.phase = 'FINISHED';
+  g.replay('p0');
+  g.start('p0', 4000, 9);
+  const x=p.x;
+  g.setInput('p0',{epoch:staleEpoch,seq:999,x:1,z:0,yaw:0,run:true,jump:true,descend:false},4100);
+  g.tick(4150);
+  assert.equal(p.x,x);
+});

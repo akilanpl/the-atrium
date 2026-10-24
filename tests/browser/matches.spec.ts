@@ -1,4 +1,5 @@
-import { test, expect, type Page, type BrowserContext } from "@playwright/test";
+import { test, expect, type Page, type BrowserContext, type TestInfo } from "@playwright/test";
+import sharp from "sharp";
 import {
   UNIVERSES,
   universe,
@@ -19,6 +20,25 @@ async function settings(p: Page) {
   await p.getByLabel("GRAPHICS", { exact: true }).selectOption("LOW");
   await p.getByLabel("Navigation aids", { exact: true }).check();
   await p.getByRole("button", { name: "⚙ Settings" }).click();
+}
+async function renderedWorld(p: Page, info: TestInfo, name: string) {
+  await p.bringToFront();
+  const sample = p.getByLabel("Frame performance");
+  await expect.poll(async () => Number(await sample.getAttribute("data-calls")), { timeout: 60000 }).toBeGreaterThan(0);
+  const context = await p.locator("canvas").first().evaluate((canvas) => {
+    const gl = (canvas as HTMLCanvasElement).getContext("webgl2");
+    return gl ? { version: gl.getParameter(gl.VERSION), lost: gl.isContextLost() } : null;
+  });
+  expect(context?.version).toContain("WebGL");
+  expect(context?.lost).toBe(false);
+  const image = await p.locator("canvas").first().screenshot();
+  const stats = await sharp(image).stats();
+  expect(Math.max(...stats.channels.slice(0,3).map(c => c.stdev))).toBeGreaterThan(2);
+  await info.attach(name + "-webgl", { body: image, contentType: "image/png" });
+  await info.attach(name + "-render", { body: JSON.stringify({ context,
+    fps: await sample.getAttribute("data-fps"), p95Ms: await sample.getAttribute("data-p95"),
+    calls: await sample.getAttribute("data-calls"), triangles: await sample.getAttribute("data-triangles"),
+  }), contentType: "application/json" });
 }
 async function position(p: Page): Promise<Point> {
   const nav = p.getByLabel("Navigation readout");
@@ -139,7 +159,7 @@ for (const n of [2, 3, 4, 5, 6])
         page.on("pageerror", (e) => runtimeErrors.push(e.name));
         await page.goto("/");
         await page
-          .getByRole("checkbox", {
+          .getByRole("button", {
             name: i % 2 ? "Mara" : "Soren",
             exact: true,
           })
@@ -183,6 +203,7 @@ for (const n of [2, 3, 4, 5, 6])
       for (const t of travelers) {
         await expect(phase(t.page)).toContainText("PREPARATION");
         t.own = await t.page.locator("h2").innerText();
+        await renderedWorld(t.page, info, t.own);
         const u = UNIVERSES.find((u) => u.name === t.own)!;
         expect(u).toBeTruthy();
         await act(t, u.mechanisms[0]);
@@ -261,6 +282,7 @@ for (const n of [2, 3, 4, 5, 6])
         contentType: "application/json",
       });
     } finally {
+      await info.attach("console-errors", { body: JSON.stringify(runtimeErrors), contentType: "application/json" });
       for (const c of contexts) await c.close();
     }
   });
