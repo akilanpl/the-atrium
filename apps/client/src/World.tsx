@@ -43,9 +43,9 @@ function Measurement({
       elapsed.current = 0;
       return;
     }
-    if (dt < 0.2) frames.current.push(dt * 1000);
+    if (Number.isFinite(dt) && dt > 0) frames.current.push(dt * 1000);
     elapsed.current += dt;
-    if (elapsed.current > 3 && frames.current.length > 20) {
+    if (elapsed.current > 3 && frames.current.length > 2) {
       const a = frames.current.sort((x, y) => x - y);
       const mean = a.reduce((s, x) => s + x, 0) / a.length;
       onSample({

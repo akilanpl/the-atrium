@@ -146,7 +146,7 @@ for (const n of [2, 3, 4, 5, 6])
   }, info) => {
     const contexts: BrowserContext[] = [],
       travelers: Traveler[] = [],
-      runtimeErrors: string[] = [];
+      runtimeErrors: string[] = [], networkEvents: string[] = [];
     try {
       let invite = "";
       for (let i = 0; i < n; i++) {
@@ -154,10 +154,20 @@ for (const n of [2, 3, 4, 5, 6])
           baseURL: "http://127.0.0.1:5174",
           viewport: { width: 1280, height: 800 },
         });
+        context.setDefaultTimeout(15000);
         contexts.push(context);
         const page = await context.newPage();
-        page.on("pageerror", (e) => runtimeErrors.push(e.name));
+        page.on("pageerror", (e) => runtimeErrors.push(e.name + ": " + e.message.replace(/[A-Za-z0-9_-]{40,}/g, "[redacted]")));
+        page.on("console", m => { if (m.type() === "error") runtimeErrors.push(m.text().replace(/[A-Za-z0-9_-]{40,}/g, "[redacted]")); });
+        page.on("requestfailed", req => networkEvents.push(new URL(req.url()).pathname + ": " + req.failure()?.errorText));
+        page.on("response", res => { if (res.status() >= 400) networkEvents.push(new URL(res.url()).pathname + ": " + res.status()); });
+        page.on("websocket", ws => {
+          networkEvents.push("ws open " + new URL(ws.url()).pathname);
+          ws.on("socketerror", () => networkEvents.push("ws error"));
+          ws.on("close", () => networkEvents.push("ws close"));
+        });
         await page.goto("/");
+        await settings(page);
         await page
           .getByRole("button", {
             name: i % 2 ? "Mara" : "Soren",
@@ -282,6 +292,7 @@ for (const n of [2, 3, 4, 5, 6])
         contentType: "application/json",
       });
     } finally {
+      await info.attach("network-events", { body: JSON.stringify(networkEvents), contentType: "application/json" });
       await info.attach("console-errors", { body: JSON.stringify(runtimeErrors), contentType: "application/json" });
       for (const c of contexts) await c.close();
     }

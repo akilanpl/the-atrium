@@ -83,8 +83,14 @@ function Human({
   const data = useMemo(() => {
     const model = clone(asset.scene);
     const ownedMaterials: THREE.Material[] = [];
+    const eyelids: { values: number[]; index: number }[] = [];
     model.traverse((o) => {
       if (o instanceof THREE.Mesh) {
+        if (o.morphTargetDictionary && o.morphTargetInfluences)
+          for (const name of ["blink_left", "blink_right"]) {
+            const index = o.morphTargetDictionary[name];
+            if (index !== undefined) eyelids.push({ values: o.morphTargetInfluences, index });
+          }
         o.castShadow = true;
         o.receiveShadow = true;
         o.frustumCulled = false;
@@ -111,7 +117,7 @@ function Human({
     const actions = Object.fromEntries(
       asset.animations.map((a) => [a.name, mixer.clipAction(a)]),
     );
-    return { model, mixer, actions, ownedMaterials };
+    return { model, mixer, actions, ownedMaterials, eyelids };
   }, [asset, player.avatar]);
   useEffect(
     () => () => {
@@ -200,17 +206,7 @@ function Human({
     const phase =
       (state.clock.elapsedTime + (player.avatar === "mara" ? 1.7 : 0)) % 4.8;
     const blink = phase < 0.14 ? Math.sin((phase / 0.14) * Math.PI) : 0;
-    data.model.traverse((o) => {
-      if (
-        o instanceof THREE.Mesh &&
-        o.morphTargetDictionary &&
-        o.morphTargetInfluences
-      )
-        for (const name of ["blink_left", "blink_right"]) {
-          const i = o.morphTargetDictionary[name];
-          if (i !== undefined) o.morphTargetInfluences[i] = blink;
-        }
-    });
+    for (const lid of data.eyelids) lid.values[lid.index] = blink;
   });
   return (
     <group ref={group} position={preview ? [0, 0, 0] : [player.x, 0, player.z]}>
