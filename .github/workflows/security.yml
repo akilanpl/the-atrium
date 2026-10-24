@@ -28,7 +28,7 @@ jobs:
       - run: npm ci
       - run: npm run typecheck:browser
       - run: PLAYWRIGHT_BROWSERS_PATH=./work/playwright-browsers npx playwright install --with-deps chromium
-      - run: npm run test:browser -- --grep '^${{ matrix.players }}-player'
+      - run: npm run test:browser -- --grep '${{ matrix.players }}-player'
       - uses: actions/upload-artifact@v4
         if: always()
         with:

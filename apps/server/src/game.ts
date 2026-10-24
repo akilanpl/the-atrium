@@ -25,6 +25,7 @@ import {
 } from "../../../packages/shared/src/universes.js";
 import {
   stepBody,
+  carryPassenger,
   idleInput,
   FIXED_STEP,
   type Input,
@@ -334,13 +335,16 @@ export class Game {
         this.accumulator -= FIXED_STEP;
         for (const p of this.players.filter((p) => p.connected)) {
           const s = this.state(p);
-          if (p.room)
+          if (p.room) {
+            const previous = { ...s };
             stepMechanism(
               this.player(p.room).universe || "library",
               s,
               FIXED_STEP,
               [p],
             );
+            carryPassenger(p, this.player(p.room).universe || "library", previous, s);
+          }
           const command = this.inputs.get(p.id),
             input =
               command && now - command.at < 250

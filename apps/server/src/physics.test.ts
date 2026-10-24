@@ -14,6 +14,7 @@ import {
 } from "../../../packages/shared/src/universes.js";
 import {
   stepBody,
+  carryPassenger,
   idleInput,
   type Body,
 } from "../../../packages/shared/src/physics.js";
@@ -185,4 +186,35 @@ test("closed geometry blocks sight; timed shelf waits instead of enclosing a pla
   s.elapsed = 4;
   stepMechanism("library", s, 0.05, [{ x: 0, y: 0, z: -7.8 }]);
   assert.equal(s.clock, 1);
+});
+
+test('authoritative moving supports carry grounded passengers continuously and release airborne bodies', () => {
+  const s = freshMechanism(), p = body('garden');
+  Object.assign(p, { x: 0, y: 0.7, z: -2, grounded: true });
+  for (let tick = 0; tick < 200; tick++) {
+    const previous = { ...s }, oldX = p.x;
+    stepMechanism('garden', s, 0.05, [p]);
+    carryPassenger(p, 'garden', previous, s);
+    assert.ok(Math.abs(p.x - oldX) < 0.071, 'bounded continuous displacement');
+    assert.ok(Math.abs(p.x - s.platform) < 1e-8, 'no accumulated sliding through support');
+    assert.equal(p.y, 0.7);
+    assert.ok(!mechanismSolids('garden', s).some(b => overlap(p, b)));
+  }
+  p.grounded = false;
+  const oldX = p.x, previous = { ...s };
+  stepMechanism('garden', s, 0.05, [p]);
+  carryPassenger(p, 'garden', previous, s);
+  assert.equal(p.x, oldX, 'jump detaches passenger');
+});
+
+test('passenger transport stops at collision and never attaches a nearby floor player', () => {
+  const before = freshMechanism(), after = { ...before, wall: 5 };
+  const p = body('manor');
+  Object.assign(p, { x: -3, y: 3, z: -2.8, grounded: true });
+  carryPassenger(p, 'manor', before, after);
+  assert.ok(!mechanismSolids('manor', after).some(b => overlap(p, b)));
+  const floor = body('garden');
+  Object.assign(floor, { x: 0, y: 0, z: -2, grounded: true });
+  carryPassenger(floor, 'garden', freshMechanism(), { ...freshMechanism(), platform: 0.07 });
+  assert.equal(floor.x, 0);
 });

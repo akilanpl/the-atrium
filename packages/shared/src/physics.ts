@@ -37,6 +37,37 @@ export const idleInput = (epoch = ""): Input => ({
   jump: false,
   descend: false,
 });
+/** Carry only a grounded passenger of an authoritative translating support.
+ * Sweep against the new obstacles; a blocked passenger can step off safely.
+ * Never accept a platform transform or passenger displacement from the wire. */
+export function carryPassenger(
+  body: Body,
+  id: UniverseId,
+  before: MechanismState,
+  after: MechanismState,
+) {
+  if (!body.grounded) return;
+  const old = mechanismSolids(id, before);
+  const next = mechanismSolids(id, after);
+  for (const support of old) {
+    const moved = next.find((s) => s.id === support.id);
+    if (!moved || Math.abs(body.y - support.y - support.h) > 0.04 ||
+      Math.abs(body.x - support.x) >= support.w / 2 + 0.25 ||
+      Math.abs(body.z - support.z) >= support.d / 2 + 0.25) continue;
+    const dx = moved.x - support.x, dz = moved.z - support.z;
+    if (!dx && !dz) continue;
+    const steps = Math.max(1, Math.ceil(Math.hypot(dx, dz) / 0.05));
+    const bounds = universe(id).bounds;
+    for (let i = 0; i < steps; i++) {
+      const p = { ...body, x: body.x + dx / steps, z: body.z + dz / steps };
+      if (Math.abs(p.x) >= bounds.x - 0.35 || Math.abs(p.z) >= bounds.z - 0.35 ||
+        next.some((s) => s.id !== support.id && overlap(p, s))) break;
+      body.x = p.x;
+      body.z = p.z;
+    }
+    return;
+  }
+}
 export function atriumSolids(): Solid[] {
   return [
     ...UNIVERSES.map((u) => {
