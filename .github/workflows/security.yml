@@ -36,7 +36,10 @@ jobs:
       - run: npm ci
       - run: npm run typecheck:browser
       - run: PLAYWRIGHT_BROWSERS_PATH=./work/playwright-browsers npx playwright install --with-deps chromium
-      - run: npm run test:browser -- --grep '${{ matrix.players }}'
+      - run: xvfb-run -a npm run test:browser -- --grep '${{ matrix.players }}'
+        env:
+          ATRIUM_BROWSER_BACKEND: mesa
+          LIBGL_ALWAYS_SOFTWARE: '1'
       - uses: actions/upload-artifact@v4
         if: always()
         with:

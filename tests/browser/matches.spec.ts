@@ -271,8 +271,11 @@ for (const n of [2, 3, 4, 5, 6])
         await t.page.waitForTimeout(250);
         await expect(variant).toHaveValue('0');
         observed.push('configured-mechanism:'+u.id);
-        await act(t, u.mechanisms[0]);
-        await expect(t.page.locator(".toast")).toContainText("activated");
+        for(const mechanism of u.mechanisms) {
+          await act(t,mechanism);
+          await expect(t.page.locator('.toast')).toContainText('activated');
+          observed.push('activated:'+u.id+':'+mechanism.id);
+        }
         await act(t, u.anchors[0], true);
         observed.push("rendered-and-hidden:"+u.id);
         await t.page

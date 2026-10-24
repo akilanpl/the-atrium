@@ -1,4 +1,5 @@
 import { test } from "node:test";
+import { Game } from "./game.js";
 import assert from "node:assert/strict";
 import {
   UNIVERSES,
@@ -217,4 +218,37 @@ test('passenger transport stops at collision and never attaches a nearby floor p
   Object.assign(floor, { x: 0, y: 0, z: -2, grounded: true });
   carryPassenger(floor, 'garden', freshMechanism(), { ...freshMechanism(), platform: 0.07 });
   assert.equal(floor.x, 0);
+});
+
+
+test('the room tick carries a passenger with wind and supports a legitimate jump off', () => {
+  const g=new Game('CARRY',[10000,10000,10000]);
+  g.add('a','A');g.add('b','B');g.start('a',1000,1);
+  const p=g.player('a');p.universe='garden';
+  Object.assign(p,{x:0,y:0.7,z:-2,grounded:true});
+  for(let i=1;i<=40;i++) {
+    const x=p.x;
+    g.tick(1000+i*50);
+    assert.ok(Math.abs(p.x-x)<0.12,'support transport stays continuous');
+    assert.equal(p.y,0.7,'passenger stays on support while wind also acts');
+    assert.ok(Math.abs(p.x-g.state(p).platform)<0.8);
+  }
+  g.setInput('a',{...idleInput(g.epoch),seq:1,jump:true},3050);
+  g.tick(3050);
+  assert.ok(p.y>0.7 && !p.grounded,'ordinary bounded jump detaches');
+});
+
+test('garden platform waits for a side occupant and resumes without burst displacement', () => {
+  const s=freshMechanism(), p={x:1.4,y:0,z:-2};
+  for(let i=0;i<100;i++) {
+    const previous=s.platform;
+    stepMechanism('garden',s,0.05,[p]);
+    assert.ok(Math.abs(s.platform-previous)<=0.071);
+    assert.ok(!mechanismSolids('garden',s).some(b=>overlap(p,b)), 'never sweeps through a floor player');
+  }
+  for(let i=0;i<100;i++) {
+    const previous=s.platform;
+    stepMechanism('garden',s,0.05);
+    assert.ok(Math.abs(s.platform-previous)<=0.071,'no catch-up teleport after occupant leaves');
+  }
 });

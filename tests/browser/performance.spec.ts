@@ -30,13 +30,18 @@ test('performance scenarios A/B: one renderer with one and six connected partici
       previous=Number(await sample.getAttribute('data-sampled-at'));
       samples.push({fps: Number(await sample.getAttribute('data-fps')),p95Ms:Number(await sample.getAttribute('data-p95')),meanMs:Number(await sample.getAttribute('data-frame-ms')),drawCalls:Number(await sample.getAttribute('data-calls')),triangles:Number(await sample.getAttribute('data-triangles'))});
     }
+    const driver=await page.locator('canvas').first().evaluate(canvas=>{
+      const gl=(canvas as HTMLCanvasElement).getContext('webgl2');
+      const extension=gl?.getExtension('WEBGL_debug_renderer_info');
+      return gl && extension ? gl.getParameter(extension.UNMASKED_RENDERER_WEBGL) : 'unavailable';
+    });
     const metrics=await page.evaluate(()=>({
       navigation: performance.getEntriesByType('navigation').map(e=>({duration:e.duration})),
       resources: performance.getEntriesByType('resource').reduce((sum,e)=>sum+((e as PerformanceResourceTiming).transferSize||0),0),
       heap: (performance as Performance & {memory?: {usedJSHeapSize:number}}).memory?.usedJSHeapSize ?? null,
       userAgent:navigator.userAgent,
     }));
-    await info.attach(label,{body:JSON.stringify({label,graphics:'LOW',renderer:'Linux CI SwiftShader software WebGL',viewport:'1280x800',samples,windowMs:Date.now()-from,receivedFrames:frames-beginFrames,receivedBytes:bytes-beginBytes,receivedBytesPerSecond:(bytes-beginBytes)/((Date.now()-from)/1000),firstPlayableMs,firstPlayableScope:"navigation through joined lobby UI, not a sustained responsiveness guarantee",runner:{platform:os.platform(),arch:os.arch(),cpu:os.cpus()[0]?.model,logicalCPUs:os.cpus().length,totalMemoryBytes:os.totalmem()},...metrics}),contentType:'application/json'});
+    await info.attach(label,{body:JSON.stringify({label,graphics:'LOW',renderer:process.env.ATRIUM_BROWSER_BACKEND || 'swiftshader',viewport:'1280x800',samples,windowMs:Date.now()-from,receivedFrames:frames-beginFrames,receivedBytes:bytes-beginBytes,receivedBytesPerSecond:(bytes-beginBytes)/((Date.now()-from)/1000),driver,firstPlayableMs,firstPlayableScope:"navigation through joined lobby UI, not a sustained responsiveness guarantee",runner:{platform:os.platform(),arch:os.arch(),cpu:os.cpus()[0]?.model,logicalCPUs:os.cpus().length,totalMemoryBytes:os.totalmem()},...metrics}),contentType:'application/json'});
     await info.attach(label+'-canvas',{body:await page.locator('canvas').first().screenshot(),contentType:'image/png'});
   }
   try {

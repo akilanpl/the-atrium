@@ -378,7 +378,13 @@ export function stepMechanism(
   }
   if (id === "garden") {
     s.turbine += ((s.stage ? 1 : 0) - s.turbine) * dt * 0.7;
-    s.platform = Math.sin(s.elapsed * 0.7) * 2;
+    const target = Math.sin(s.elapsed * 0.7) * 2;
+    // A blocked platform waits; resume with bounded travel instead of snapping
+    // to the elapsed-time target and teleporting a passenger on release.
+    const next = s.platform + Math.max(-1.4 * dt, Math.min(1.4 * dt, target - s.platform));
+    if (!players.some((p) => overlap(p, {
+      id: "wind-platform", x: next, y: 0, z: -2, w: 2, h: 0.7, d: 2,
+    }))) s.platform = next;
   }
 }
 export function lineOfSight(from: Point, to: Point, solids: Solid[]) {

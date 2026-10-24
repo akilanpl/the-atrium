@@ -1,4 +1,5 @@
 import { defineConfig } from "@playwright/test";
+const mesa = process.env.ATRIUM_BROWSER_BACKEND === "mesa";
 export default defineConfig({
   testDir: "./tests/browser",
   workers: 1,
@@ -15,9 +16,9 @@ export default defineConfig({
     actionTimeout: 60000,
     viewport: { width: 1280, height: 800 },
     storageState: { cookies: [], origins: [{ origin: "http://127.0.0.1:5174", localStorage: [{name:"atrium:quality",value:"LOW"}] }] },
-    headless: true,
+    headless: !mesa,
     channel: "chromium",
-    launchOptions: { args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"] },
+    launchOptions: { args: mesa ? ["--use-gl=angle", "--use-angle=gl", "--ignore-gpu-blocklist"] : ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"] },
     screenshot: "only-on-failure",
     trace: "off",
   },
