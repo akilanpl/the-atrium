@@ -17,6 +17,7 @@ interface Traveler {
 }
 const phase = (p: Page) => p.locator("header .eyebrow");
 async function settings(p: Page) {
+  await p.bringToFront();
   await p.getByRole("button", { name: "⚙ Settings" }).click();
   await p.getByLabel("GRAPHICS", { exact: true }).selectOption("LOW");
   await p.getByLabel("Navigation aids", { exact: true }).check();
@@ -229,10 +230,12 @@ for (const n of [2, 3, 4, 5, 6])
       await renderedWorld(host.page,info,'six-door-atrium-'+n);
       observed.push('lobby-count-and-webgl:'+n);
       let missingWorld: (typeof UNIVERSES)[number] | undefined;
+      await host.page.bringToFront();
       await host.page
         .getByRole("button", { name: "Begin the match →" })
         .click();
       for (const t of travelers) {
+        await t.page.bringToFront();
         await expect(phase(t.page)).toContainText("PREPARATION");
         t.own = await t.page.locator("h2").innerText();
         await renderedWorld(t.page, info, t.own);
@@ -268,6 +271,7 @@ for (const n of [2, 3, 4, 5, 6])
       expect(new Set(travelers.map((t) => t.own)).size).toBe(n);
       for (let round = 1; round < n; round++) {
         for (const t of travelers) {
+          await t.page.bringToFront();
           await expect(phase(t.page)).toContainText(`ROUND ${round}/${n - 1}`);
           const name = await t.page.locator("h2").innerText();
           expect(name).not.toBe(t.own);
@@ -286,6 +290,7 @@ for (const n of [2, 3, 4, 5, 6])
           await expect(t.page.locator(".inventory .found")).toHaveCount(round);
         }
       }
+      await host.page.bringToFront();
       await expect(phase(host.page)).toContainText("FINALE",{timeout:150000});
       if(missingWorld) {
         const entrance=door(missingWorld.id);
@@ -307,12 +312,14 @@ for (const n of [2, 3, 4, 5, 6])
       ).toBeVisible();
       await host.page.keyboard.press("e");
       for (const t of travelers) {
+        await t.page.bringToFront();
         await expect(t.page.locator(".results h1")).toHaveText(host.name);
         expect(t.visited.size).toBe(n - 1);
       }
       await host.page.screenshot({
         path: `work/browser-artifacts/${n}-player-portal.png`,
       });
+      await host.page.bringToFront();
       await host.page
         .getByRole("button", { name: "Open the doors again →" })
         .click();
