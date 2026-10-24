@@ -147,6 +147,7 @@ for (const n of [2, 3, 4, 5, 6])
     const contexts: BrowserContext[] = [],
       travelers: Traveler[] = [],
       runtimeErrors: string[] = [], networkEvents: string[] = [];
+    let completed = false;
     try {
       let invite = "";
       for (let i = 0; i < n; i++) {
@@ -163,6 +164,10 @@ for (const n of [2, 3, 4, 5, 6])
         page.on("response", res => { if (res.status() >= 400) networkEvents.push(new URL(res.url()).pathname + ": " + res.status()); });
         page.on("websocket", ws => {
           networkEvents.push("ws open " + new URL(ws.url()).pathname);
+          if (new URL(ws.url()).pathname.split('/').length === 3) {
+            ws.on("framereceived", ({payload}) => networkEvents.push("rx " + (typeof payload === "string" ? payload.length : payload[0]) + " bytes=" + payload.length));
+            ws.on("framesent", ({payload}) => networkEvents.push("tx " + (typeof payload === "string" ? payload.length : payload[0]) + " bytes=" + payload.length));
+          }
           ws.on("socketerror", () => networkEvents.push("ws error"));
           ws.on("close", () => networkEvents.push("ws close"));
         });
@@ -291,10 +296,11 @@ for (const n of [2, 3, 4, 5, 6])
         }),
         contentType: "application/json",
       });
+      completed = true;
     } finally {
       await info.attach("network-events", { body: JSON.stringify(networkEvents), contentType: "application/json" });
       await info.attach("console-errors", { body: JSON.stringify(runtimeErrors), contentType: "application/json" });
-      if (info.status !== info.expectedStatus)
+      if (!completed)
         for (let i=0; i<contexts.length; i++) {
           const page=contexts[i].pages()[0];
           if (page && !page.isClosed()) {
