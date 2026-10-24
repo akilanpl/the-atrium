@@ -213,7 +213,9 @@ function App() {
         }}
         dpr={GRAPHICS[quality].dpr}
         gl={{
-          antialias: quality !== "LOW",
+          // Context MSAA cannot be toggled after creation. Preset DPR supplies
+          // supersampling without leaving LOW stuck with the initial MSAA cost.
+          antialias: false,
           powerPreference: "high-performance",
           toneMapping: THREE.ACESFilmicToneMapping,
           toneMappingExposure: 0.9,
