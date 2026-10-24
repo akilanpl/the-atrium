@@ -14,6 +14,7 @@ export default defineConfig({
     baseURL: "http://127.0.0.1:5174",
     viewport: { width: 1280, height: 800 },
     headless: true,
+    launchOptions: { args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"] },
     screenshot: "only-on-failure",
     trace: "off",
   },
