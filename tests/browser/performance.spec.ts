@@ -12,6 +12,7 @@ test('performance scenarios A/B: one renderer with one and six connected partici
   });
   const start=Date.now();
   await page.goto('/');
+  await page.getByRole('button', { name: 'Enter the Atrium' }).first().click();
   await page.getByRole('button',{name:'⚙ Settings'}).click();
   await page.getByLabel('GRAPHICS',{exact:true}).selectOption('LOW');
   await page.getByLabel('Navigation aids',{exact:true}).check();

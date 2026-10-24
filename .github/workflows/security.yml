@@ -26,7 +26,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        players: [2, 3, 4, 5, 6, performance]
+        players: [2, 3, 4, 5, 6, performance, journey]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -47,4 +47,5 @@ jobs:
           path: |
             work/05-playwright-results.json
             work/browser-artifacts/
+            work/journey-*.png
           retention-days: 7

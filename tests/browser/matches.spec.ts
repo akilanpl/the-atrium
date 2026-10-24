@@ -203,6 +203,7 @@ for (const n of [2, 3, 4, 5, 6])
           ws.on("close", () => networkEvents.push("ws close"));
         });
         await page.goto("/");
+        await page.getByRole("button", { name: "Enter the Atrium" }).first().click();
         await settings(page);
         await page
           .getByRole("button", {

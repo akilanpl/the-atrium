@@ -37,3 +37,9 @@ Export server variables in the shell; `.env` is not automatically loaded. `FAST_
 In-memory rooms disappear on restart; no accounts/database/mobile controls. Recovery retains a seat for 20 seconds. Personalized JSON snapshots run at 10 Hz, simulation at 20 Hz, with client interpolation and no prediction. Physics uses swept axis-aligned collision and constrained mechanisms, not general rigid bodies. All approved anchors pass bounded simulation/controller tests; balance and complete browser playability still require human testing. Six simultaneous browser renderers measured 33–42 FPS in short samples; sustained target-hardware 45–60 FPS is not established. No staging/public deployment has been validated or authorized.
 
 Source was previously pushed to the private GitHub repository on `development` at `e651d07e3d9670109121d6c95083c797015ff5de`. Milestones 05/06 are preserved on feature branch feat/six-player-browser-readiness in draft PR #1; consult current CI before release. Invitations are server-issued 256-bit fragment links, expiring/revocable and subject to host lock/kick. Credentials stay in tab-scoped sessionStorage, not localStorage. No analytics or external AI service is added.
+
+## Cinematic website journey
+
+The public entrance now scrolls through arrival, descent, six selectable doors, six animated world showcases, a magical key sequence, a gameplay ritual and the final portal. All Enter the Atrium buttons open the existing private lobby. Invite links and session recovery go directly to the game.
+
+Run `npm ci` then `npm run dev` and open http://localhost:5173. Read [LEARNING-GUIDE.md](LEARNING-GUIDE.md) for the animation architecture and [design notes](docs/CINEMATIC_DESIGN.md) for motion, performance and accessibility decisions. Run `npm run test:browser -- tests/browser/journey.spec.ts` for the new site acceptance tests. The game and multiplayer acceptance tests now enter through the visible play CTA.

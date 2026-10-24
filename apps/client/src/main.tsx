@@ -22,6 +22,7 @@ import * as THREE from "three";
 import { admit, resume, type Connection } from "./network";
 import { avatarId, type Snapshot } from "../../../packages/shared/src/world";
 import "./style.css";
+import { Journey } from "./Journey";
 function recovery() {
   try {
     return sessionStorage.getItem("atrium-resume");
@@ -40,6 +41,7 @@ function remember(value: string | null) {
 }
 const ignoreView = () => {};
 function App() {
+  const [showJourney, setShowJourney] = useState(!recovery() && !location.hash.includes("invite="));
   const [renderActive, setRenderActive] = useState(true);
   const [navigation, setNavigation] = useState(false);
   const [view, setView] = useState({ heading: 0, pitch: 0.32 });
@@ -198,6 +200,7 @@ function App() {
     0,
     Math.ceil(((state?.advanceAt || state?.deadline || now) - now) / 1000),
   );
+  if (showJourney && !room) return <Journey onEnter={() => setShowJourney(false)} />;
   return (
     <main
       data-render-active={renderActive}
