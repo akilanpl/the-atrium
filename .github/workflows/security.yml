@@ -1,17 +1,25 @@
 name: Release checks
 on: [push]
+permissions:
+  contents: read
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   checks:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
           cache: npm
       - run: npm ci
       - run: npm run release:check
+      - run: npm run security:history
   browser:
     runs-on: ubuntu-latest
     timeout-minutes: 25

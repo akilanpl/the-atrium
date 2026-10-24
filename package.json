@@ -16,7 +16,8 @@
     "release:check": "npm run typecheck && npm run lint && npm run build && npm test && npm run security:scan && npm audit --audit-level=high",
     "test:browser": "PLAYWRIGHT_BROWSERS_PATH=./work/playwright-browsers playwright test",
     "browser:install": "PLAYWRIGHT_BROWSERS_PATH=./work/playwright-browsers playwright install chromium",
-    "typecheck:browser": "tsc --noEmit --target ES2022 --module ESNext --moduleResolution Bundler --esModuleInterop --skipLibCheck playwright.config.ts tests/browser/*.spec.ts"
+    "typecheck:browser": "tsc --noEmit --target ES2022 --module ESNext --moduleResolution Bundler --esModuleInterop --skipLibCheck playwright.config.ts tests/browser/*.spec.ts",
+    "security:history": "python3 scripts/history-scan.py"
   },
   "devDependencies": {
     "@gltf-transform/core": "^4.5.1",
