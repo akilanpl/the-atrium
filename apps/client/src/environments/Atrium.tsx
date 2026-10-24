@@ -1,3 +1,8 @@
+import {
+  UNIVERSES,
+  door,
+  MAX_UNIVERSES,
+} from "../../../../packages/shared/src/universes";
 import { useRef, useMemo } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
@@ -98,8 +103,8 @@ function Portal({
             depthWrite={false}
           />
         </mesh>
-        {Array.from({ length: 3 }, (_, i) => {
-          const a = (i - 1) * 0.45;
+        {Array.from({ length: MAX_UNIVERSES }, (_, i) => {
+          const a = (i - 2.5) * 0.3;
           return (
             <group
               key={i}
@@ -108,7 +113,9 @@ function Portal({
               <mesh
                 rotation={[0, 0, Math.PI / 4]}
                 material={
-                  me && me.keys.length > i ? palette.brass : palette.dark
+                  me && (i === 0 || me.keys.length >= i)
+                    ? palette.brass
+                    : palette.dark
                 }
               >
                 <boxGeometry args={[0.28, 0.28, 0.17]} />
@@ -118,7 +125,9 @@ function Portal({
                 <meshStandardMaterial
                   color="#ceb87f"
                   emissive="#ceb87f"
-                  emissiveIntensity={me && me.keys.length > i ? 2 : 0}
+                  emissiveIntensity={
+                    me && (i === 0 || me.keys.length >= i) ? 2 : 0
+                  }
                 />
               </mesh>
             </group>
@@ -284,9 +293,9 @@ export default function Atrium({
           <torusGeometry args={[17, 0.3, 8, 96]} />
         </mesh>
       ))}
-      {Array.from({ length: 4 }, (_, i) => {
-        const a = (i * Math.PI) / 2;
-        const owner = state?.players[i];
+      {UNIVERSES.map((u, i) => {
+        const a = door(u.id).angle;
+        const owner = state?.players.find((p) => p.universe === u.id);
         return (
           <group
             key={i}
@@ -340,8 +349,8 @@ export default function Atrium({
               position={[0, 7.1, 0]}
               text={
                 owner
-                  ? `${owner.name} · CLOCKWORK LIBRARY`
-                  : `0${i + 1} · THE LIBRARY`
+                  ? `${owner.name} · ${u.name.toUpperCase()}`
+                  : `${u.name.toUpperCase()} · SEALED`
               }
               wide
             />

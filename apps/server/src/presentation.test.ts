@@ -113,10 +113,25 @@ test("avatar validation, motion replication and interaction events remain server
   g.add("b", "B", "forged");
   assert.equal(g.player("b").avatar, "soren");
   const p = g.player("a");
-  g.move("a", { x: p.x + 0.2, z: p.z, yaw: 1, motion: "run", speed: 100 }, 100);
+  g.setInput(
+    "a",
+    {
+      epoch: g.epoch,
+      seq: 1,
+      x: 1,
+      z: 0,
+      yaw: 1,
+      run: false,
+      jump: false,
+      descend: false,
+    },
+    100,
+  );
+  g.tick(150);
   assert.equal(p.motion, "walk");
-  assert.ok(Math.abs(p.speed - 2) < 0.0001);
+  assert.ok(p.speed > 0 && p.speed <= 1.65);
   g.start("a", 200);
+  g.player("b").universe = "library";
   g.next(300);
   p.x = -6;
   p.z = -3;
@@ -144,4 +159,42 @@ test("portal plinth height follows the rendered floor without changing library g
   assert.equal(groundHeight(0, 2, false), 0.18);
   assert.equal(groundHeight(0, 6, false), 0);
   assert.equal(groundHeight(0, 2, true), 0);
+});
+
+test("camera targeting chooses only a visible reticle hit within reach and respects occluding walls", async () => {
+  const { pickInteraction } =
+    await import("../../client/src/spatialInteraction.js");
+  const camera = new THREE.PerspectiveCamera(55, 1.6, 0.1, 100);
+  camera.position.set(0, 3, 5);
+  camera.lookAt(0, 1.4, 0);
+  camera.updateMatrixWorld(true);
+  const target = new THREE.Mesh(
+    new THREE.BoxGeometry(0.85, 0.85, 0.85),
+    new THREE.MeshBasicMaterial(),
+  );
+  target.position.set(0, 0.7, -2);
+  target.userData.interact = "clock";
+  target.updateMatrixWorld(true);
+  assert.equal(
+    pickInteraction(camera, [target], [], { x: 0, y: 0, z: 0 }),
+    "clock",
+  );
+  const wall = new THREE.Mesh(
+    new THREE.BoxGeometry(4, 3, 0.5),
+    new THREE.MeshBasicMaterial(),
+  );
+  wall.position.set(0, 1.5, -1);
+  wall.updateMatrixWorld(true);
+  assert.equal(
+    pickInteraction(camera, [target], [wall], { x: 0, y: 0, z: 0 }),
+    "",
+  );
+  assert.equal(pickInteraction(camera, [target], [], { x: 5, y: 0, z: 0 }), "");
+  target.position.x = 4;
+  target.updateMatrixWorld(true);
+  assert.equal(pickInteraction(camera, [target], [], { x: 4, y: 0, z: 0 }), "");
+  target.geometry.dispose();
+  wall.geometry.dispose();
+  (target.material as THREE.Material).dispose();
+  (wall.material as THREE.Material).dispose();
 });

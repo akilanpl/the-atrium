@@ -1,18 +1,14 @@
 import { useRef, useEffect } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
-import {
-  canOccupy,
-  WALK_SPEED,
-  RUN_SPEED,
-  type Snapshot,
-} from "../../../packages/shared/src/world";
+import { type Snapshot } from "../../../packages/shared/src/world";
 import type { Connection } from "./network";
 import { shortestAngle } from "./motion";
 import { reducedMotion } from "./settings";
 export interface Motor {
   x: number;
   z: number;
+  y: number;
   yaw: number;
   speed: number;
   moving: boolean;
@@ -22,11 +18,13 @@ export function Controls({
   room,
   interact,
   motor,
+  onView,
 }: {
   state: Snapshot | null;
   room: Connection | null;
-  interact: () => void;
+  interact: (release?: boolean) => void;
   motor: React.RefObject<Motor>;
+  onView: (view: { heading: number; pitch: number }) => void;
 }) {
   const keys = useRef(new Set<string>()),
     angle = useRef(0.1),
@@ -40,6 +38,8 @@ export function Controls({
     scan = useRef(0),
     ray = useRef(new THREE.Raycaster());
   callback.current = interact;
+  const viewTick = useRef(0);
+  const sequence = useRef(0);
   const actionSeen = useRef(0),
     facingTarget = useRef(0),
     facingUntil = useRef(0);
@@ -47,13 +47,32 @@ export function Controls({
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
       if ((e.target as HTMLElement).closest("input,textarea,select")) return;
-      if (["KeyW", "KeyA", "KeyS", "KeyD", "Space"].includes(e.code))
+      if (
+        [
+          "KeyW",
+          "KeyA",
+          "KeyS",
+          "KeyD",
+          "Space",
+          "ArrowLeft",
+          "ArrowRight",
+          "ArrowUp",
+          "ArrowDown",
+        ].includes(e.code)
+      )
         e.preventDefault();
       keys.current.add(e.code);
       if (e.code === "KeyE" && !e.repeat) callback.current();
       if (e.code === "KeyR") angle.current = motor.current.yaw + Math.PI;
     };
-    const up = (e: KeyboardEvent) => keys.current.delete(e.code);
+    const up = (e: KeyboardEvent) => {
+      keys.current.delete(e.code);
+      if (
+        e.code === "KeyE" &&
+        !(e.target as HTMLElement).closest("input,textarea,select")
+      )
+        callback.current(true);
+    };
     const clear = () => {
       keys.current.clear();
       velocity.current.set(0, 0);
@@ -102,17 +121,38 @@ export function Controls({
       return;
     }
     if (!local) return;
+    angle.current +=
+      (+keys.current.has("ArrowLeft") - +keys.current.has("ArrowRight")) *
+      dt *
+      1.4;
+    pitch.current = THREE.MathUtils.clamp(
+      pitch.current +
+        (+keys.current.has("ArrowUp") - +keys.current.has("ArrowDown")) *
+          dt *
+          0.45,
+      -0.05,
+      1,
+    );
+
     const key = state!.phase + state!.owner + state!.round;
     if (tag.current !== key) {
       tag.current = key;
       Object.assign(motor.current, {
         x: local.x,
         z: local.z,
+        y: local.y,
         yaw: local.yaw,
         speed: 0,
       });
       velocity.current.set(0, 0);
       scan.current = 0;
+    }
+    if (clock.elapsedTime - viewTick.current > 0.1) {
+      viewTick.current = clock.elapsedTime;
+      onView({
+        heading: THREE.MathUtils.radToDeg(angle.current),
+        pitch: pitch.current,
+      });
     }
     const p = motor.current;
     const forward = +keys.current.has("KeyW") - +keys.current.has("KeyS"),
@@ -122,28 +162,12 @@ export function Controls({
       -forward * Math.cos(angle.current) - side * Math.sin(angle.current),
     );
     if (wish.lengthSq() > 0) wish.normalize();
-    const targetSpeed =
-      keys.current.has("ShiftLeft") || keys.current.has("ShiftRight")
-        ? RUN_SPEED
-        : WALK_SPEED;
-    wish.multiplyScalar(targetSpeed);
-    velocity.current.lerp(
-      wish,
-      1 - Math.exp(-dt * (wish.lengthSq() ? 12 : 18)),
-    );
-    if (velocity.current.length() < 0.025) velocity.current.set(0, 0);
-    const before = new THREE.Vector2(p.x, p.z);
-    const dx = velocity.current.x * dt,
-      dz = velocity.current.y * dt;
-    const valid = (x: number, z: number) =>
-      canOccupy(x, z, !!state?.owner, !!state?.open, 0.32);
-    if (valid(p.x + dx, p.z)) p.x += dx;
-    else velocity.current.x = 0;
-    if (valid(p.x, p.z + dz)) p.z += dz;
-    else velocity.current.y = 0;
-    p.speed =
-      before.distanceTo(new THREE.Vector2(p.x, p.z)) / Math.max(0.001, dt);
+    p.x = THREE.MathUtils.damp(p.x, local.x, 18, dt);
+    p.z = THREE.MathUtils.damp(p.z, local.z, 18, dt);
+    p.y = THREE.MathUtils.damp(p.y || 0, local.y, 18, dt);
+    p.speed = local.speed;
     p.moving = p.speed > 0.08;
+    velocity.current.set(local.vx, local.vz);
     if (local.action !== actionSeen.current) {
       actionSeen.current = local.action;
       facingTarget.current = local.yaw;
@@ -161,12 +185,16 @@ export function Controls({
         (1 - Math.exp(-dt * 14));
     if (clock.elapsedTime - last.current > 0.05) {
       last.current = clock.elapsedTime;
-      room.send("move", { x: p.x, z: p.z, yaw: p.yaw });
-      if (Math.hypot(local.x - p.x, local.z - p.z) > 1.4) {
-        p.x = local.x;
-        p.z = local.z;
-        velocity.current.set(0, 0);
-      }
+      room.send("input", {
+        epoch: state!.epoch,
+        seq: ++sequence.current,
+        x: wish.x,
+        z: wish.y,
+        yaw: p.yaw,
+        run: keys.current.has("ShiftLeft") || keys.current.has("ShiftRight"),
+        jump: keys.current.has("Space"),
+        descend: keys.current.has("KeyC"),
+      });
     }
     if (clock.elapsedTime - scan.current > 0.5) {
       scan.current = clock.elapsedTime;
@@ -175,10 +203,10 @@ export function Controls({
         if (o.userData.cameraBlock) blockers.current.push(o);
       });
     }
-    const eye = new THREE.Vector3(p.x, 1.4, p.z),
+    const eye = new THREE.Vector3(p.x, p.y + 1.4, p.z),
       target = new THREE.Vector3(
         p.x + Math.sin(angle.current) * distance.current,
-        1.4 + pitch.current * distance.current,
+        p.y + 1.4 + pitch.current * distance.current,
         p.z + Math.cos(angle.current) * distance.current,
       );
     const direction = target.clone().sub(eye).normalize();

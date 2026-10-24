@@ -1,4 +1,3 @@
-import { groundHeight } from "../../../packages/shared/src/world";
 import { releaseCharacter } from "./characterLifecycle";
 import React, {
   Suspense,
@@ -130,9 +129,7 @@ function Human({
       current.position.x - desired.x,
       current.position.z - desired.z,
     );
-    const ground = preview
-      ? 0
-      : groundHeight(desired.x, desired.z, !!player.room);
+    const ground = preview ? 0 : "y" in desired ? desired.y : player.y;
     if (separation > 3) current.position.set(desired.x, ground, desired.z);
     else
       current.position.lerp(

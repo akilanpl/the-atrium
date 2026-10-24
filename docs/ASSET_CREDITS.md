@@ -40,3 +40,7 @@ Source/publisher: Poly Haven and its contributing artists. Individual author nam
 ## Tooling
 
 Three.js and its loaders/SkeletonUtils: MIT. React, Drei/R3F and glTF Transform retain their package licenses. `sharp` is an offline development dependency used for prop-texture resizing. Asset license verification is distinct from software-library licensing; no Mixamo/marketplace/celebrity model is bundled.
+
+## Milestone 05 original geometry
+
+Observatory, Sanctuary, Forge, Manor and Garden geometry, palette arrangements, particles and mechanism visuals are original procedural meshes authored in this repository. No additional third-party model, texture, music, generated bitmap or external AI API was added. Existing licensed avatars, PBR surfaces, Library props and original synthesized audio retain the provenance above. New world visuals are alpha procedural artwork, not claimed scanned or photorealistic assets.

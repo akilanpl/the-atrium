@@ -1,6 +1,6 @@
 # Staging deployment security
 
-No public deployment or push has been performed. The nginx example is a template, not a validated live configuration.
+Source was pushed to the private GitHub repository on development at e651d07e3d9670109121d6c95083c797015ff5de. No public deployment has been performed. The nginx example is a template, not a validated live configuration.
 
 1. Use a single maintained Linux host, Node 24 LTS, a non-root process user and a TLS reverse proxy. Install with `npm ci`, run `npm run release:check`, retain the exact lockfile/build and reviewed release report.
 2. Configure a separate staging HTTPS hostname, certificates and DNS. Set `NODE_ENV=production`, `TLS_PROXY=1`, `ALLOWED_ORIGINS=https://your-staging-host` and `PORT=2567`. No FAST_MODE. Build the client with its default same-host WSS or an exact `VITE_SERVER_URL=wss://…`. VITE variables are public; never put secrets in them.
@@ -15,4 +15,4 @@ Dev uses localhost HTTP/WS only, test mode enables a test-only short invite life
 
 Rollback: stop new admissions at the proxy, drain, restore the previous reviewed build and exact lockfile, restart one instance, verify health and two-client admission/play/reconnect before reopening. Restart invalidates live invites and sessions; no persistent migration rollback is needed.
 
-Required staging evidence: external HTTPS/WSS and bad-Origin rejection; direct-port firewall; private room discovery denial; expired/revoked recovery; CSP/browser console; no credentials in all layers' logs; 2–4 players and separate rooms; controlled connection/drop/refresh/replay/load; supervisor shutdown/rollback; retention and privacy/contact review. Authorization and real infrastructure are required before these checks can be claimed complete.
+Required staging evidence: external HTTPS/WSS and bad-Origin rejection; direct-port firewall; private room discovery denial; expired/revoked recovery; CSP/browser console; no credentials in all layers' logs; 2–6 players and separate rooms; controlled connection/drop/refresh/replay/load; supervisor shutdown/rollback; retention and privacy/contact review. Authorization and real infrastructure are required before these checks can be claimed complete.

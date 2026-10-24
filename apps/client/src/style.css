@@ -736,3 +736,7 @@ footer {
   text-underline-offset: 3px;
 }
 .privacy-notice{max-width:420px;font-size:11px;line-height:1.5;color:#b6b0a3;margin-top:12px;max-height:130px;overflow:auto}.privacy-notice summary{cursor:pointer;color:#caa86a}.privacy-notice p{font-size:11px;margin:8px 0}
+.reticle{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);font-size:22px;color:#f1d9a0;pointer-events:none;text-shadow:0 0 6px #000;z-index:4}.prepare{max-height:68vh;overflow-y:auto}.prepare details{font-size:11px}.prepare details button{padding:8px;font-size:11px}.prepare details select{padding:8px}.roster{max-height:55vh;overflow-y:auto}.roster strong{font-size:13px!important;letter-spacing:1px!important}.roster .player{font-size:11px}.prepare h2{font-size:25px}.prepare p{font-size:12px}.prepare textarea{min-height:55px}
+.invite-token{font-size:10px;color:#b8a682;margin:6px 0}.invite-token input{width:100%;font-size:9px;padding:5px;border:1px solid #655a43;background:#151d22;color:#d2c19b}
+.elevation{position:fixed;bottom:72px;right:36px;font-size:11px;color:#ddd4b6;pointer-events:none}
+.navigation{position:fixed;bottom:72px;left:36px;font-size:11px;color:#ddd4b6;pointer-events:none}

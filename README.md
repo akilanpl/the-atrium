@@ -1,6 +1,6 @@
 # THE ATRIUM
 
-A procedural 3D multiplayer mystery for 2–4 people. Hide a key in your Clockwork Library, read rivals’ clues, search their universes, and unlock the central portal.
+A local playable alpha for 2–6 guests: six private fantasy universes, server-simulated movement and mechanisms, hidden keys, rival rotation and a central portal race. The six worlds have working mechanics and original procedural architecture; the newer scenes are not finished photorealistic artwork.
 
 ## Run
 
@@ -11,40 +11,29 @@ npm ci
 npm run dev
 ```
 
-Open http://localhost:5173. The Colyseus server runs on port 2567. Create a lobby with a nickname, copy the invite, and join from another tab/browser with a different nickname. The host starts with 2–4 players. Development listeners are local only. For staging, use HTTPS/WSS through the reviewed reverse proxy configuration; do not expose either dev port publicly.
+Open http://localhost:5173. Backend: localhost:2567. Choose Soren or Mara, create a private lobby, copy its invitation, and join from another tab/browser with a different nickname. The host starts with 2–6 people. Listeners remain local; do not expose development ports publicly.
 
-Choose Soren or Mara before entering a lobby; Portrait previews the modeled face. Selection is saved locally. WASD moves, Shift runs, the mouse wheel zooms, and R recenters. Hold right mouse and drag to orbit the camera. E inspects the nearest object; in the finale it enters a nearby rival door or unlocks the central portal. The on-screen interaction button also works. Each library has a clock, desk, hollow book, statue, and secret compartment. Interact with the peculiar book along the back wall to slide the shelf aside. In the finale, return using the HUD button.
+WASD moves, Shift runs, Space jumps/ascends, C descends underwater, E interacts with the reticle target. Hold E for at least 0.6 seconds at an approved anchor to hide your key. Hold right mouse and drag to orbit; arrow keys also aim the camera. Wheel zooms, R recenters, Escape opens settings. Text fields suspend movement shortcuts. Optional navigation aids show coordinates and heading.
 
-Preparation lasts 120 seconds or until all rooms are ready. Each exploration round lasts 90 seconds, visiting every rival exactly once. The finale lasts 90 seconds, with explicit hiding-place hints in its second half. All keys are required at the portal. At timeout, keys collected, time of collecting all keys, and original join order break ties. Disconnected players retain their room and count in the match; their secrets remain searchable. The host role transfers. Replay removes disconnected players and clears secrets and keys.
+Preparation lasts 120 seconds or until everyone seals. Explore your assigned world, test its mechanism, hide a key, optionally change three snapped decorative props/two decoys, write a clue and seal. Each 90-second exploration round visits one different rival. Six players receive five rounds. Finale is 90 seconds: revisit rivals using their doors, collect all N−1 keys, then physically approach and interact with the central portal. The first valid portal activation wins. After a capped 45-second overtime, a unique connected positive-key leader can win by progress; tied/empty inventories draw. No join-order winner. Replay clears match state and reshuffles assignments.
 
-## Checks and short mode
+See [gameplay and six-world guide](docs/GAMEPLAY.md), [registry](docs/UNIVERSES.md), [physics](docs/PHYSICS.md), [architecture](docs/ARCHITECTURE.md), [test matrix](docs/TEST_MATRIX.md), [performance](docs/PERFORMANCE.md), [security audit](docs/SECURITY_AUDIT.md), [asset credits](docs/ASSET_CREDITS.md), and [deployment requirements](docs/DEPLOYMENT_SECURITY.md).
+
+## Validation
 
 ```sh
-npm run typecheck
-npm test
-npm run lint
-npm run build
-FAST_MODE=1 npm run dev
+npm run release:check
+npm run typecheck:browser
+npm run browser:install
+npm run test:browser
 ```
 
-Export variables in your shell; the server does not load `.env` automatically. FAST_MODE is rejected in production.
+Release check runs frontend/backend TypeScript, ESLint, both production builds, server/game/physics/real-socket tests, bounded secret scanning and dependency audit. Playwright is a separate explicit gate, not silently counted as passing by release:check. Its five tests cover player counts 2–6 using real UI input. This machine could not launch Chromium (macOS Mach-port permission denial); the full browser match matrix remains unverified. The in-app browser loaded all six worlds with six clients and observed draw/replay, but did not complete a key-to-portal human match.
 
-Short mode uses 1.5s preparation, 2.5s exploration rounds, and a 5s finale. For normal play omit FAST_MODE. `npm run build` outputs the Vite client under `apps/client/dist` and compiled server under `apps/server/dist`. `npm run start -w apps/server` runs the source server with tsx.
+Export server variables in the shell; `.env` is not automatically loaded. `FAST_MODE=1 npm run dev` is a very short non-production smoke mode. Non-production `PREPARATION_MS`, `EXPLORATION_MS`, `FINALE_MS` accept 1000–300000 ms. Normal play should use defaults. Production disallows test timing configuration.
 
-Manual browser check: use two tabs, verify names and motion, set different clues, mark both ready, inspect the wrong object, open the hidden shelf, collect one key twice (inventory must remain one), wait for finale, approach center and press E, then replay. In three/four tabs check each round changes owner and never visits your own room.
+## Release limits
 
-## Limitations
+In-memory rooms disappear on restart; no accounts/database/mobile controls. Recovery retains a seat for 20 seconds. Personalized JSON snapshots run at 10 Hz, simulation at 20 Hz, with client interpolation and no prediction. Physics uses swept axis-aligned collision and constrained mechanisms, not general rigid bodies. All approved anchors pass bounded simulation/controller tests; balance and complete browser playability still require human testing. Six simultaneous browser renderers measured 33–42 FPS in short samples; sustained target-hardware 45–60 FPS is not established. No staging/public deployment has been validated or authorized.
 
-In-memory sessions disappear on restart. Guest credential admission and a 20-second recovery grace are implemented; persistent accounts and mobile controls are absent. Local synthesized ambience/effects start after a user gesture; Settings controls graphics, volume and mute. Procedural collision uses axis-aligned major furniture and room boundaries; no rigid-body physics. Snapshots are personalized JSON at 20 Hz rather than schema deltas. Production hosting validation, representative load testing and accessibility beyond the HUD remain future work.
-
-The current Colyseus 0.17 dependency audit reports zero known vulnerabilities. Invites, admission grants, seat identities and recovery tokens use cryptographically random 256-bit values; server-only authority gates seat creation.
-
-## Art and assets
-
-The game ships local, licensed human GLBs, PBR surfaces/HDR, scanned library props and original audio. Normal startup does not require Blender, asset accounts or asset downloads. See `docs/ART_DIRECTION.md`, `docs/CHARACTER_PIPELINE.md`, `docs/ASSET_CREDITS.md` and `docs/PERFORMANCE.md` for provenance, rebuilding and measured limits.
-
-## Master Prompt 03 — private admission and release controls
-
-Invites are now server-issued high-entropy links with `#invite=…` fragments, replacing the old six-character query code flow. Create → copy invitation → friend opens or pastes the token → join. Hosts can replace invites, lock joins and kick; kick also replaces the invite. Invites expire after 30 minutes, rooms after one hour. Unexpected disconnects retain the original seat for 20 seconds; refresh uses tab-scoped sessionStorage recovery. Explicit leave/kick/flood ends the session. Preferences remain in localStorage; bearer credentials do not.
-
-Colyseus server/SDK are migrated together to 0.17 with exact versions. Run `npm run release:check` before release. Current audit supersedes earlier dependency notes: zero known npm vulnerabilities at the latest check. See `docs/SECURITY_AUDIT.md`, `SECURITY_ARCHITECTURE.md`, `PRIVACY.md`, `DEPLOYMENT_SECURITY.md`, `INCIDENT_RESPONSE.md` and `PUBLIC_RELEASE_CHECKLIST.md`. Existing historical handoffs describe previous versions. No public hosting is authorized or configured by this change.
+Source was previously pushed to the private GitHub repository on `development` at `e651d07e3d9670109121d6c95083c797015ff5de`. This milestone's local changes are not a verified remote release. Invitations are server-issued 256-bit fragment links, expiring/revocable and subject to host lock/kick. Credentials stay in tab-scoped sessionStorage, not localStorage. No analytics or external AI service is added.

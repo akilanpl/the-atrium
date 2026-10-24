@@ -97,6 +97,8 @@ test(
       const guest = await connect(await admit(false, invite, "Friend"));
       const third = await connect(await admit(false, invite, "Third"));
       const fourth = await connect(await admit(false, invite, "Fourth"));
+      await connect(await admit(false, invite, "Fifth"));
+      await connect(await admit(false, invite, "Sixth"));
       assert.equal((await admit(false, invite, "Overflow")).status, 403);
       let hostView: Snapshot | undefined;
       host.onMessage("snapshot", (v: Snapshot) => (hostView = v));
@@ -110,7 +112,7 @@ test(
       other.send("start");
       await until(
         () =>
-          otherView?.phase === "PREPARATION" && hostView?.players.length === 4,
+          otherView?.phase === "PREPARATION" && hostView?.players.length === 6,
       );
       assert.equal(hostView!.phase, "WAITING");
       assert.ok(!JSON.stringify(hostView).includes("Other host"));
@@ -143,9 +145,9 @@ test(
       assert.equal(restored.sessionId, guest.sessionId);
       assert.equal((await post("/api/reconnect", { credential })).status, 403);
       await until(
-        () => hostView?.players.filter((p) => p.connected).length === 4,
+        () => hostView?.players.filter((p) => p.connected).length === 6,
       );
-      assert.equal(new Set(hostView!.players.map((p) => p.id)).size, 4);
+      assert.equal(new Set(hostView!.players.map((p) => p.id)).size, 6);
       assert.equal(
         (await post("/api/reconnect", { credential: "fake:invalid" })).status,
         403,

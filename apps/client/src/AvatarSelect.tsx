@@ -17,6 +17,13 @@ export function AvatarSelect({
 }) {
   const [portrait, setPortrait] = useState(false);
   const p: Player = {
+    y: 0,
+    vx: 0,
+    vy: 0,
+    vz: 0,
+    grounded: true,
+    universe: "",
+    inspections: 0,
     id: "preview",
     name: "Traveler",
     x: 0,
