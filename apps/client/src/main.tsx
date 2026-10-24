@@ -520,7 +520,8 @@ function App() {
                 <label>
                   SNAPPED POSITION
                   <select
-                    value={slot}
+                    aria-label="SNAPPED POSITION"
+                  value={slot}
                     onChange={(e) => {
                       setSlot(Number(e.target.value));
                       setPreviewEdit(true);

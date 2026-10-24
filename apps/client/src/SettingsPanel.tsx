@@ -56,6 +56,7 @@ export function Settings({
           <label>
             GRAPHICS
             <select
+              aria-label="GRAPHICS"
               value={value}
               onChange={(e) => {
                 const v = quality(e.target.value);

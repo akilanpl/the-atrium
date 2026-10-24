@@ -294,6 +294,14 @@ for (const n of [2, 3, 4, 5, 6])
     } finally {
       await info.attach("network-events", { body: JSON.stringify(networkEvents), contentType: "application/json" });
       await info.attach("console-errors", { body: JSON.stringify(runtimeErrors), contentType: "application/json" });
+      if (info.status !== info.expectedStatus)
+        for (let i=0; i<contexts.length; i++) {
+          const page=contexts[i].pages()[0];
+          if (page && !page.isClosed()) {
+            await info.attach("failure-ui-"+i, { body: (await page.locator("body").innerText()).replace(/[A-Za-z0-9_-]{40,}/g,"[redacted]"), contentType: "text/plain" });
+            await info.attach("failure-canvas-"+i,{ body: await page.locator("canvas").first().screenshot(), contentType:"image/png" });
+          }
+        }
       for (const c of contexts) await c.close();
     }
   });
