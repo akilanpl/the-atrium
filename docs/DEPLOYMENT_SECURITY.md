@@ -1,0 +1,18 @@
+# Staging deployment security
+
+No public deployment or push has been performed. The nginx example is a template, not a validated live configuration.
+
+1. Use a single maintained Linux host, Node 24 LTS, a non-root process user and a TLS reverse proxy. Install with `npm ci`, run `npm run release:check`, retain the exact lockfile/build and reviewed release report.
+2. Configure a separate staging HTTPS hostname, certificates and DNS. Set `NODE_ENV=production`, `TLS_PROXY=1`, `ALLOWED_ORIGINS=https://your-staging-host` and `PORT=2567`. No FAST_MODE. Build the client with its default same-host WSS or an exact `VITE_SERVER_URL=wss://…`. VITE variables are public; never put secrets in them.
+3. Adapt `deploy/nginx.conf.example`: set hostname, certificate, web root and WSS CSP destination. Run `nginx -t` on the actual machine. Bind the game listener to loopback; firewall 2567 and expose only HTTPS. Redirect plain HTTP to HTTPS. The production build refuses insecure WS endpoints. TLS_PROXY is an operator assertion, not proof of TLS termination.
+4. Serve only `apps/client/dist`, never the checkout. Exclude `.env`, sourcemaps, node_modules, source files and test/debug endpoints. The sample CSP permits style attributes required by React/R3F, while scripts permit only self with no inline/eval allowance. Validate all 3D assets, avatars, CSS, audio, blobs and lazy chunks under the actual policy.
+5. Disable URL/body logging on both proxy and provider. Colyseus upgrade queries contain transient credentials. Ensure provider diagnostics, error pages and traces redact them too. Configure sanitized log expiry at 24 hours. No durable match data exists to back up.
+6. Keep proxy IP limits; backend ignores forwarded IP headers and therefore sees a shared proxy address. Its conservative aggregate limits can constrain legitimate large staging workloads. Tune only with measured bounded load and reviewed effective limits; do not disable them. Add edge connection/bandwidth protection for public operation.
+7. Probe `/health` and `/ready` locally (not public proxy paths), at a conservative interval such as 15 seconds. The process emits aggregate metrics each minute. Monitor RSS growth, denied admissions, flood events, transport errors and completion failures. No monitoring service or alert destination is configured yet.
+8. SIGTERM enters draining, stops accepting admissions and gracefully shuts down rooms; a 10-second deadline forces exit. Configure a supervisor restart policy and a drain window exceeding ten seconds. In-memory sessions do not survive restart; tell players before maintenance.
+
+Dev uses localhost HTTP/WS only, test mode enables a test-only short invite lifetime, and staging/production both use fail-closed production settings. Never set NODE_ENV=test on an internet-facing deployment. No separate database or distributed room directory exists. Do not run multiple workers/replicas behind round-robin routing.
+
+Rollback: stop new admissions at the proxy, drain, restore the previous reviewed build and exact lockfile, restart one instance, verify health and two-client admission/play/reconnect before reopening. Restart invalidates live invites and sessions; no persistent migration rollback is needed.
+
+Required staging evidence: external HTTPS/WSS and bad-Origin rejection; direct-port firewall; private room discovery denial; expired/revoked recovery; CSP/browser console; no credentials in all layers' logs; 2–4 players and separate rooms; controlled connection/drop/refresh/replay/load; supervisor shutdown/rollback; retention and privacy/contact review. Authorization and real infrastructure are required before these checks can be claimed complete.

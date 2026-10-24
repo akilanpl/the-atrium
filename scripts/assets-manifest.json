@@ -1,0 +1,177 @@
+[
+  {
+    "url": "https://raw.githubusercontent.com/kblood/CharacterCreator/852e48f316b90a0937234886630e4fb4cdfd1f78/output/hair_bob02.glb",
+    "path": "work/character-source/hair_bob02.glb",
+    "sha256": "6fda507823964a160c7552a9a8c283d6770a2944f1e24795026e42ba989aec7d"
+  },
+  {
+    "url": "https://raw.githubusercontent.com/kblood/CharacterCreator/852e48f316b90a0937234886630e4fb4cdfd1f78/output/hair_short02.glb",
+    "path": "work/character-source/hair_short02.glb",
+    "sha256": "eb341c197acf3948dac1f41f7722e9dad31018149541504a13ebcc8b6aa9d5aa"
+  },
+  {
+    "url": "https://raw.githubusercontent.com/kblood/CharacterCreator/852e48f316b90a0937234886630e4fb4cdfd1f78/output/clothing_jeans.glb",
+    "path": "work/character-source/clothing_jeans.glb",
+    "sha256": "dac0e90aba219415e895eed0e471c0a9aab6b53f8870be1f8dfd41cd89c25d11"
+  },
+  {
+    "url": "https://raw.githubusercontent.com/kblood/CharacterCreator/852e48f316b90a0937234886630e4fb4cdfd1f78/output/clothing_shirt.glb",
+    "path": "work/character-source/clothing_shirt.glb",
+    "sha256": "c3467876f712e63a901fa664b1d54eb0127c56d20888dbbb0a606973fd26e9cc"
+  },
+  {
+    "url": "https://raw.githubusercontent.com/kblood/CharacterCreator/852e48f316b90a0937234886630e4fb4cdfd1f78/output/base_body_anim.glb",
+    "path": "work/character-source/base_body_anim.glb",
+    "sha256": "0eb271d4adea12b7f6bb1d4d8f7398db702f9449479be559ab9f019b5ab30b0f"
+  },
+  {
+    "url": "https://raw.githubusercontent.com/kblood/CharacterCreator/852e48f316b90a0937234886630e4fb4cdfd1f78/output/clothing_boots.glb",
+    "path": "work/character-source/clothing_boots.glb",
+    "sha256": "ca9bd57f279006c5114cc47fbbc8143d0e53ac5ddb9b40c78099a53a0c904895"
+  },
+  {
+    "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/marble_01/marble_01_diff_1k.jpg",
+    "path": "apps/client/public/assets/materials/marble-color.jpg",
+    "sha256": "b10dabea976d68baa976a0d4e8dac58789df8d26a1b50697f320106f1b00a229"
+  },
+  {
+    "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/marble_01/marble_01_nor_gl_1k.jpg",
+    "path": "apps/client/public/assets/materials/marble-normal.jpg",
+    "sha256": "77c2a9b549a6a408659f8197be91945aeb0abc33e697f1dd2ce24ee8dc7c2bc0"
+  },
+  {
+    "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/marble_01/marble_01_rough_1k.jpg",
+    "path": "apps/client/public/assets/materials/marble-rough.jpg",
+    "sha256": "a3e9f373d22aebc449af73f6a18c9817e2146f17e567a083609ba8fbb62a72f5"
+  },
+  {
+    "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/wood_table_worn/wood_table_worn_diff_1k.jpg",
+    "path": "apps/client/public/assets/materials/wood-color.jpg",
+    "sha256": "092ab3465a6a24b24d092ea86865f332c3bd239b8eb2fd664b70357082031a3f"
+  },
+  {
+    "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/wood_table_worn/wood_table_worn_nor_gl_1k.jpg",
+    "path": "apps/client/public/assets/materials/wood-normal.jpg",
+    "sha256": "0d494f3fe08320a05f0f966a7a3ca3c4cd6e3f7cde5b176b9bc167b5593fd00d"
+  },
+  {
+    "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/wood_table_worn/wood_table_worn_rough_1k.jpg",
+    "path": "apps/client/public/assets/materials/wood-rough.jpg",
+    "sha256": "ebc4a15d7d3495ee1b67ba18f67bffcefac3f93881d1394fa3e22a25f9fe5c72"
+  },
+  {
+    "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/stone_wall_02/stone_wall_02_diff_1k.jpg",
+    "path": "apps/client/public/assets/materials/stone-color.jpg",
+    "sha256": "546c51130575b57db1c9690766c55df19e80bf122bd3630f25f82f2832998fa8"
+  },
+  {
+    "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/stone_wall_02/stone_wall_02_nor_gl_1k.jpg",
+    "path": "apps/client/public/assets/materials/stone-normal.jpg",
+    "sha256": "47c4ee16834a755da49feafe920161db2fd5147be97dd9d24f3b659d9b462c1e"
+  },
+  {
+    "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/stone_wall_02/stone_wall_02_rough_1k.jpg",
+    "path": "apps/client/public/assets/materials/stone-rough.jpg",
+    "sha256": "b857cb67f7dd2c439f8e6d31ef3e279fa18ae2cec66b320382d03a83593178e5"
+  },
+  {
+    "url": "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/brown_photostudio_02_1k.hdr",
+    "path": "apps/client/public/assets/materials/palace.hdr",
+    "sha256": "469abc5e6035b6c450bae8adbb448f8d1fa7c51d9e384e501516c28352c91b58"
+  },
+  {
+    "url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/8k/vintage_grandfather_clock_01/vintage_grandfather_clock_01_8k.gltf",
+    "path": "work/props/clock/clock.gltf",
+    "sha256": "fd65106c97a8d0115f2fd6d8727e54c87531bb89a4fae25edcb5bfa447ae40ab"
+  },
+  {
+    "url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/vintage_grandfather_clock_01/vintage_grandfather_clock_01_nor_gl_1k.jpg",
+    "path": "work/props/clock/textures/vintage_grandfather_clock_01_nor_gl_1k.jpg",
+    "sha256": "a41aff853e19918f81c6b3d2a4b14034ca002b136779f8e5daa10d33cbdbecf7"
+  },
+  {
+    "url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/vintage_grandfather_clock_01/vintage_grandfather_clock_01_diff_1k.jpg",
+    "path": "work/props/clock/textures/vintage_grandfather_clock_01_diff_1k.jpg",
+    "sha256": "2da73ab925dd5c18aa4c428f34519919a115dc45c37cf27976a3a15323ef7d9f"
+  },
+  {
+    "url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/vintage_grandfather_clock_01/vintage_grandfather_clock_01_arm_1k.jpg",
+    "path": "work/props/clock/textures/vintage_grandfather_clock_01_arm_1k.jpg",
+    "sha256": "e0425b70773bc624f296f3b83f3a8001ac05f3d2cbcd1b1e1bd79dd1ca4b94de"
+  },
+  {
+    "url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/8k/vintage_grandfather_clock_01/vintage_grandfather_clock_01.bin?atrium=1",
+    "path": "work/props/clock/vintage_grandfather_clock_01.bin",
+    "sha256": "a6369fa664dd13d281e87c63f0ba31a0350291c93322fd10ec63f2ba4d252fd3"
+  },
+  {
+    "url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/marble_bust_01/marble_bust_01_1k.gltf",
+    "path": "work/props/bust/bust.gltf",
+    "sha256": "b6f192fc01be4349470b66f6f6948bd37620267bdbc86f4568e4d078f97ff09b"
+  },
+  {
+    "url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/8k/marble_bust_01/marble_bust_01.bin",
+    "path": "work/props/bust/marble_bust_01.bin",
+    "sha256": "0bb757c1bd00bfe42005c84e7f76df98ce04a532e595a2ddda8a0335cd959e33"
+  },
+  {
+    "url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/marble_bust_01/marble_bust_01_nor_gl_1k.jpg",
+    "path": "work/props/bust/textures/marble_bust_01_nor_gl_1k.jpg",
+    "sha256": "3d355904cd54c2de90d5d4310b80d43816fa2dd509f0a3445d654eab8e237c5f"
+  },
+  {
+    "url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/marble_bust_01/marble_bust_01_diff_1k.jpg",
+    "path": "work/props/bust/textures/marble_bust_01_diff_1k.jpg",
+    "sha256": "cbb7dccdc62d7eaa240eef7b4956969bf6e73c7338b64f1378629838ea22383c"
+  },
+  {
+    "url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/marble_bust_01/marble_bust_01_rough_1k.jpg",
+    "path": "work/props/bust/textures/marble_bust_01_rough_1k.jpg",
+    "sha256": "1c4502352dc936dd1f1c1a81b418706df1ce0445949874215015325f9b8921fb"
+  },
+  {
+    "url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/lantern_chandelier_01/lantern_chandelier_01_1k.gltf",
+    "path": "work/props/chandelier/chandelier.gltf",
+    "sha256": "dc5480e03b82d12521fc46bdb73d4a0291641cfa0d4e4c0fe21f3a087bc69468"
+  },
+  {
+    "url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/lantern_chandelier_01/lantern_chandelier_01_glass_arm_1k.jpg",
+    "path": "work/props/chandelier/textures/lantern_chandelier_01_glass_arm_1k.jpg",
+    "sha256": "0946fcf83e9839caaa91e978d851cebcdb080f5e58e41cb912a967efdda8eca2"
+  },
+  {
+    "url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/lantern_chandelier_01/lantern_chandelier_01_glass_nor_gl_1k.jpg",
+    "path": "work/props/chandelier/textures/lantern_chandelier_01_glass_nor_gl_1k.jpg",
+    "sha256": "b2b71d166f9f42ac916c3d3139652cd2bbb8158ba69003777ecb9ec326ecfdc7"
+  },
+  {
+    "url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/lantern_chandelier_01/lantern_chandelier_01_arm_1k.jpg",
+    "path": "work/props/chandelier/textures/lantern_chandelier_01_arm_1k.jpg",
+    "sha256": "759c5d302fb6b6443677d221b16010395f70018d0f5eb83913c4c9ebad5efb0e"
+  },
+  {
+    "url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/lantern_chandelier_01/lantern_chandelier_01_diff_1k.jpg",
+    "path": "work/props/chandelier/textures/lantern_chandelier_01_diff_1k.jpg",
+    "sha256": "72b46da4e813c1e3ef27a9ddc4cc849a4c6de313ac2925b189c58a8813233313"
+  },
+  {
+    "url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/lantern_chandelier_01/lantern_chandelier_01_glass_diff_1k.jpg",
+    "path": "work/props/chandelier/textures/lantern_chandelier_01_glass_diff_1k.jpg",
+    "sha256": "b7f9a93f77db82980c2e5f5e5667e1e073118e881bd500e9e1a45e5de5551103"
+  },
+  {
+    "url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/lantern_chandelier_01/lantern_chandelier_01_glass_alpha_1k.jpg",
+    "path": "work/props/chandelier/textures/lantern_chandelier_01_glass_alpha_1k.jpg",
+    "sha256": "facc4b2c8b0530175cb669c3230ad42c001402d6125d7954aa6506a76f7a423f"
+  },
+  {
+    "url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/lantern_chandelier_01/lantern_chandelier_01_nor_gl_1k.jpg",
+    "path": "work/props/chandelier/textures/lantern_chandelier_01_nor_gl_1k.jpg",
+    "sha256": "c09551358d2f95467e3af5ec5b2cd9338f84a23980c1536157e9291e01c3d94d"
+  },
+  {
+    "url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/8k/lantern_chandelier_01/lantern_chandelier_01.bin",
+    "path": "work/props/chandelier/lantern_chandelier_01.bin",
+    "sha256": "2431ab40b0c336600ba58c3144b6cb257370245a5096938363aa4b796aaa5cee"
+  }
+]

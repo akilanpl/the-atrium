@@ -1,0 +1,47 @@
+# Template only: configure certificates, DNS, paths, log rotation and firewall first.
+# Place limit zones in the http{} block.
+limit_req_zone $binary_remote_addr zone=atrium:10m rate=5r/s;
+map $http_upgrade $connection_upgrade { default upgrade; '' close; }
+server {
+    listen 443 ssl;
+    server_name atrium.example.com;
+    ssl_certificate /etc/letsencrypt/live/atrium.example.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/atrium.example.com/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    root /srv/atrium/apps/client/dist;
+    client_max_body_size 2k;
+    # Colyseus places ephemeral session/reconnect credentials in upgrade query strings.
+    # Disable access logging here; never log request_uri, query strings or bodies upstream.
+    access_log off;
+    error_log /var/log/nginx/atrium-error.log crit;
+    add_header Strict-Transport-Security "max-age=31536000" always;
+    add_header Referrer-Policy "no-referrer" always;
+    add_header X-Content-Type-Options nosniff always;
+    add_header X-Frame-Options DENY always;
+    add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
+    # React/R3F write style attributes; this narrow allowance does not permit inline scripts.
+    add_header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self'; style-src-attr 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' wss://atrium.example.com; worker-src 'self' blob:; media-src 'self'; font-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; upgrade-insecure-requests" always;
+    location ~* \.(map|env)$ { deny all; }
+    location /api/ {
+        limit_req zone=atrium burst=10 nodelay;
+        proxy_pass http://127.0.0.1:2567;
+        proxy_set_header Host $host;
+        proxy_set_header Origin $http_origin;
+        proxy_set_header X-Forwarded-For "";
+        proxy_set_header X-Real-IP "";
+    }
+    location /matchmake { return 403; }
+    location ~ "^/[A-Za-z0-9_-]+/[A-Za-z0-9_-]+$" {
+        limit_req zone=atrium burst=10 nodelay;
+        proxy_pass http://127.0.0.1:2567;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $connection_upgrade;
+        proxy_set_header Origin $http_origin;
+        proxy_set_header X-Forwarded-For "";
+        proxy_set_header X-Real-IP "";
+        proxy_read_timeout 35s;
+
+    }
+    location / { try_files $uri /index.html; }
+}

@@ -1,0 +1,18 @@
+# Dependencies and generated builds
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+
+# Local work, packaged handoffs, screenshots and logs
+work/
+outputs/
+*.log
+.DS_Store
+
+# Environment and credentials (commit only the reviewed example)
+.env
+.env.*
+!.env.example
+*.pem
+*.key

@@ -1,0 +1,19 @@
+# Architecture
+
+`apps/client/src/World.tsx` builds procedural lobby and library meshes, avatar interpolation. `Controls.tsx` owns orbit camera, camera obstruction, movement, and collision. `Label.tsx` draws disposable canvas-texture name sprites without external font downloads. `main.tsx` handles entry, phase HUD, clue editing, results, and interaction dispatch. `network.ts` creates the Colyseus client. `style.css` supplies Tailwind and cinematic HUD styles.
+
+`apps/server/src/game.ts` is the authoritative rules engine, independent of transport. `index.ts` adapts Colyseus messages and sends personalized snapshots every 50ms. The engine owns phase deadlines, deterministic rotation, room secrets, per-visitor bookshelf state, movement validation, inventory, portal validation, tie breaking, host transfer, and replay. Secrets never enter snapshots. Disconnects preserve the original schedule and room secrets until replay. Active matches reject new members.
+
+Shared world definitions in `packages/shared/src/world.ts` describe phases, snapshots, hiding anchors, interaction positions, and collision volumes. Client messages are `start`, `ready {anchor,secret,clue}`, `move {x,z,yaw}`, `interact {object}`, `visit {owner}`, and `replay`. Server messages are `snapshot`, `notice`, and host-only `invite`. Moderation/admission controls add `rotateInvite`, `lock`, `kick {id}`, and `report {id,reason}`. Malformed actions are caught and rejected by the adapter; positions must be finite, bounded, speed limited, and outside major obstacles. Interaction checks phase, owner/access, distance, mechanism, and duplicate inventory. Portal validation checks all opponent keys and physical proximity.
+
+Future universes should extract world object definitions, approved anchors, blockers, rendering component, and mechanism interaction handling into a registry keyed by universe ID. Keep secret configuration server-only and expose only clues and visitor-specific mechanism state. The current single-universe engine avoids speculative registry layers.
+
+## Visual milestone 02
+
+`environments/Atrium.tsx`, `Library.tsx`, and `Architecture.tsx` separate architecture, props and the bookshelf animation. `Assets.tsx` owns the cached GLB/texture integration and shared PBR palette. `Character.tsx`, `motion.ts`, and `characterLifecycle.ts` handle skeleton cloning, animation transitions and cleanup. `Controls.tsx` shares a local motor ref with the local character, so rendering follows predicted movement without per-frame React state updates. `World.tsx` coordinates lazy scenery, lighting, local audio cues, visitors and frame sampling. `AvatarSelect.tsx` and `SettingsPanel.tsx` provide local preferences.
+
+Join options additionally include a validated avatar preset. Player snapshots include the preset, server-derived speed/motion and validated interaction sequence number. Bones and eyelids are never replicated. The client may request movement/facing; the server derives locomotion from accepted displacement, clears stale motion, and sweeps collision intervals to reject tunneling. Shared `canOccupy`, `canTravel` and `groundHeight` keep client collision and visible floor height aligned with the rules. Hidden anchors remain server-only and all original phase/inventory/victory rules are preserved.
+
+## Security milestone 03
+
+`security.ts` owns strict runtime validation, normalized text, cryptographic tokens and bounded rate-limit maps. `index.ts` owns private admission, static authorization, one-use grants, origin and protocol limits, supported reconnection, invite/room/report TTLs, sanitized metrics and graceful shutdown. The HTTP guard wraps the framework router after initialization and allowlists only four application paths. See `SECURITY_ARCHITECTURE.md` for trust boundaries, limits, privacy and infrastructure requirements.
