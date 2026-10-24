@@ -4,6 +4,8 @@ Start with `apps/client/src/Journey.tsx`. `Journey` owns the page and a mutable 
 
 `Palace` reads that timeline in the persistent React Three Fiber scene. Camera position uses frame-rate-independent exponential interpolation. The geometry is original and procedural: colonnades, a portal, towers, distant silhouettes, orbital instruments and a key. Vector/color temporaries are allocated once. Follow the cleanup effect: RAF, Lenis, media-query listeners, visibility listener and IntersectionObserver all stop on unmount.
 
+The hero also uses a compressed original generated backdrop; see its asset provenance in `apps/client/public/assets/journey/PROVENANCE.md`. It is atmospheric concept art, separate from the live game.
+
 Next read `WorldVignette.tsx` and `journey.css` together. SVG paths tell each world's story, while CSS transform groups animate moving shelves, celestial bodies, currents, a magnetic carriage, sliding walls and wind. IntersectionObserver pauses offscreen world animations. Buttons expose pressed state, keyboard focus uses the same selection behavior as pointer interaction, and mobile selection works by tap.
 
 Finally read the short integration in `main.tsx`. Entering the game unmounts the journey and its renderer. Invite links and recoverable sessions bypass the introduction. Existing private-room admission remains the only way to join a game. The journey does not create a room, award a key or change server rules.

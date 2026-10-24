@@ -41,7 +41,9 @@ function remember(value: string | null) {
 }
 const ignoreView = () => {};
 function App() {
-  const [showJourney, setShowJourney] = useState(!recovery() && !location.hash.includes("invite="));
+  const [showJourney, setShowJourney] = useState(
+    !recovery() && !location.hash.includes("invite="),
+  );
   const [renderActive, setRenderActive] = useState(true);
   const [navigation, setNavigation] = useState(false);
   const [view, setView] = useState({ heading: 0, pitch: 0.32 });
@@ -83,9 +85,10 @@ function App() {
     [clue, setClue] = useState("Time keeps more than hours."),
     [now, setNow] = useState(Date.now());
   useEffect(() => {
+    if (!room) return;
     const i = setInterval(() => setNow(Date.now()), 250);
     return () => clearInterval(i);
-  }, []);
+  }, [room]);
   useEffect(() => {
     if (!notice) return;
     const i = setTimeout(() => setNotice(""), 6000);
@@ -200,7 +203,8 @@ function App() {
     0,
     Math.ceil(((state?.advanceAt || state?.deadline || now) - now) / 1000),
   );
-  if (showJourney && !room) return <Journey onEnter={() => setShowJourney(false)} />;
+  if (showJourney && !room)
+    return <Journey onEnter={() => setShowJourney(false)} />;
   return (
     <main
       data-render-active={renderActive}
@@ -528,7 +532,7 @@ function App() {
                   SNAPPED POSITION
                   <select
                     aria-label="SNAPPED POSITION"
-                  value={slot}
+                    value={slot}
                     onChange={(e) => {
                       setSlot(Number(e.target.value));
                       setPreviewEdit(true);
@@ -596,7 +600,10 @@ function App() {
                   onChange={(e) => setClue(e.target.value)}
                 />
               </label>
-              <button disabled={me?.ready} onClick={() => room.send("ready", { clue })}>
+              <button
+                disabled={me?.ready}
+                onClick={() => room.send("ready", { clue })}
+              >
                 {me?.ready ? "Universe sealed" : "Validate & seal universe →"}
               </button>
               <small>

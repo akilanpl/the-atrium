@@ -16,7 +16,7 @@ An original palace between universes: midnight blue, weathered stone, pale brass
 
 ## Architecture and budgets
 
-One Canvas for the journey, unmounted before the existing game Canvas mounts. Lenis and chapter normalization share one RAF controller; scene animation reads refs. No shadows, postprocessing, downloaded textures, or new GLB assets. 120 dust points. DPR capped at 1.25; reduced motion renders on demand and disables CSS animation, camera motion and Lenis smoothing. Hidden tabs stop rendering. Offscreen world artwork pauses.
+One Canvas for the journey, unmounted before the existing game Canvas mounts. Lenis and chapter normalization share one RAF controller; scene animation reads refs. No shadows, postprocessing or new GLB assets. One compressed generated hero backdrop supplements the procedural geometry. 120 dust points. DPR capped at 1.25; reduced motion renders on demand and disables CSS animation, camera motion and Lenis smoothing. Hidden tabs stop rendering. Offscreen world artwork pauses.
 
 Mobile uses native touch scrolling, three-column doors, stacked world sections and a collapsible navigation menu. CSS motion is removed for reduced-motion preferences. WebGL initialization failures are contained by a boundary and a CSS portal fallback; the content and play controls remain available. Hardware performance and mobile-device GPU behavior still require measurement; no 60fps claim is made.
 
@@ -27,3 +27,5 @@ The first in-app browser screenshot showed overly repetitive ring compositions a
 ## Limits
 
 No new sound plays automatically. Existing game audio unlocks only through normal game interaction. No poster was attached, and no branded assets or third-party fantasy art were used. The installed skill catalog contains no Taste skill. General rigid-body simulation and previous six-player end-to-end acceptance gaps remain outside this visual overhaul.
+
+The final hero polish adds an original generated palace environment behind live HTML typography, with slow depth drift and a gradient into the procedural scene. The desktop WebP is 220,020 bytes; mobile is 75,260 bytes. They are CSS-selected by viewport, and their provenance and exact generation brief are in `apps/client/public/assets/journey/PROVENANCE.md`. The backdrop is generated concept art, not game footage. All interactive doors, key, world vignettes and play controls remain actual code.

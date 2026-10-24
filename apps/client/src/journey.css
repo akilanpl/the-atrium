@@ -1087,3 +1087,35 @@
     transform: scale(0.97);
   }
 }
+.journey .journey-hero {
+  overflow: clip;
+}
+.journey-hero-art {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background:
+    linear-gradient(90deg, #090f16d9 0%, #090f1660 45%, #090f160a 75%),
+    linear-gradient(0deg, #090f16 0%, transparent 30%, #090f1630),
+    url("/assets/journey/palace.webp") 60% center/cover no-repeat;
+  animation: arrival-drift 24s ease-in-out infinite alternate;
+  transform-origin: 65% 45%;
+  pointer-events: none;
+}
+@keyframes arrival-drift {
+  to {
+    transform: scale(1.045) translateX(-0.6%);
+  }
+}
+@media (max-width: 540px) {
+  .journey-hero-art {
+    background-image:
+      linear-gradient(90deg, #090f16cc, #090f1666),
+      linear-gradient(0deg, #090f16, transparent 50%),
+      url("/assets/journey/palace-mobile.webp");
+    background-position:
+      center,
+      center,
+      58% center;
+  }
+}

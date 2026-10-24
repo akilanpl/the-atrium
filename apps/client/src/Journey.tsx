@@ -478,6 +478,7 @@ export function Journey({ onEnter }: { onEnter: () => void }) {
         </div>
       </nav>
       <section id="arrival" data-chapter className="journey-hero">
+        <div className="journey-hero-art" aria-hidden="true" />
         <p className="journey-kicker">A PALACE BETWEEN UNIVERSES</p>
         <h1>
           THE

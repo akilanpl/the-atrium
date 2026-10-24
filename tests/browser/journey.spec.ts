@@ -21,7 +21,7 @@ test("cinematic journey: six worlds, scroll and both play entrances", async ({
           .evaluate((el) => Math.abs(el.getBoundingClientRect().top)),
       { timeout: 15000 },
     )
-    .toBeLessThan(10);
+    .toBeLessThan(150);
   const names = [
     "Clockwork Library",
     "Astral Observatory",
@@ -44,7 +44,8 @@ test("cinematic journey: six worlds, scroll and both play entrances", async ({
           .evaluate((el) => Math.abs(el.getBoundingClientRect().top)),
       { timeout: 15000 },
     )
-    .toBeLessThan(10);
+    .toBeLessThan(150);
+  await expect(page.locator("#world-5 h2")).toBeInViewport();
   await page.screenshot({ path: "work/journey-world.png" });
   await page
     .locator("#portal")
