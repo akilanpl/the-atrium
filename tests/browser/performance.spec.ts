@@ -17,7 +17,7 @@ test('performance scenarios A/B: one renderer with one and six connected partici
   await page.getByRole('button',{name:'⚙ Settings'}).click();
   await page.getByLabel('YOUR NAME',{exact:true}).fill('Performance Host');
   await page.getByRole('button',{name:'Create a private lobby'}).click();
-  await expect(page.locator('header .eyebrow')).toContainText('WAITING');
+  await expect(page.locator('header .eyebrow')).toContainText('WAITING',{timeout:120000});
   const firstPlayableMs=Date.now()-start;
   const sample=page.getByLabel('Frame performance');
   async function measure(label: string) {

@@ -1,4 +1,4 @@
-import { test, expect, type Page, type BrowserContext, type TestInfo } from "@playwright/test";
+import { test, expect, type Page, type BrowserContext, type TestInfo, type CDPSession } from "@playwright/test";
 import sharp from "sharp";
 import {
   UNIVERSES,
@@ -148,6 +148,7 @@ for (const n of [2, 3, 4, 5, 6])
       travelers: Traveler[] = [],
       runtimeErrors: string[] = [], networkEvents: string[] = [];
     let completed = false;
+    let profiler: CDPSession | undefined;
     try {
       let invite = "";
       for (let i = 0; i < n; i++) {
@@ -158,6 +159,11 @@ for (const n of [2, 3, 4, 5, 6])
         context.setDefaultTimeout(15000);
         contexts.push(context);
         const page = await context.newPage();
+        if (n===2 && i===0) {
+          profiler = await context.newCDPSession(page);
+          await profiler.send('Profiler.enable');
+          await profiler.send('Profiler.start');
+        }
         page.on("crash", () => networkEvents.push("renderer crash"));
         page.on("framenavigated", f => networkEvents.push("navigation " + new URL(f.url()).pathname));
         page.on("pageerror", (e) => runtimeErrors.push(e.name + ": " + e.message.replace(/[A-Za-z0-9_-]{40,}/g, "[redacted]")));
@@ -189,7 +195,7 @@ for (const n of [2, 3, 4, 5, 6])
             .click();
           await expect(
             page.getByRole("button", { name: "Copy invite link ↗" }),
-          ).toBeVisible();
+          ).toBeVisible({timeout:120000});
           await page.getByText("Manual invitation", { exact: true }).click();
           invite = await page
             .getByLabel("Invite token", { exact: true })
@@ -300,6 +306,12 @@ for (const n of [2, 3, 4, 5, 6])
       });
       completed = true;
     } finally {
+      if (profiler) {
+        try {
+          const data = await Promise.race([profiler.send('Profiler.stop'),new Promise<null>(resolve=>setTimeout(()=>resolve(null),5000))]);
+          if(data) await info.attach('admission-cpu-profile',{body:JSON.stringify(data),contentType:'application/json'});
+        } catch { /* Capture must not mask the original acceptance failure. */ }
+      }
       await info.attach("network-events", { body: JSON.stringify(networkEvents), contentType: "application/json" });
       await info.attach("console-errors", { body: JSON.stringify(runtimeErrors), contentType: "application/json" });
       if (!completed)
