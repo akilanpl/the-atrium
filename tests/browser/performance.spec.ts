@@ -51,7 +51,7 @@ test('performance scenarios A/B: one renderer with one and six connected partici
       room.onMessage('*',()=>{});
       peers.push(room);
     }
-    await expect(page.locator('.roster li')).toHaveCount(6);
+    await expect(page.locator('.roster .player')).toHaveCount(6);
     await measure('B-six-participants-one-renderer-five-socket-peers');
     await page.mouse.click(640,420);
     const nav=page.getByLabel('Navigation readout'), z=await nav.getAttribute('data-z'), inputAt=Date.now();

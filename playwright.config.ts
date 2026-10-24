@@ -15,6 +15,7 @@ export default defineConfig({
     actionTimeout: 15000,
     viewport: { width: 1280, height: 800 },
     headless: true,
+    channel: "chromium",
     launchOptions: { args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"] },
     screenshot: "only-on-failure",
     trace: "off",

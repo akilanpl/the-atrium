@@ -158,6 +158,8 @@ for (const n of [2, 3, 4, 5, 6])
         context.setDefaultTimeout(15000);
         contexts.push(context);
         const page = await context.newPage();
+        page.on("crash", () => networkEvents.push("renderer crash"));
+        page.on("framenavigated", f => networkEvents.push("navigation " + new URL(f.url()).pathname));
         page.on("pageerror", (e) => runtimeErrors.push(e.name + ": " + e.message.replace(/[A-Za-z0-9_-]{40,}/g, "[redacted]")));
         page.on("console", m => { if (m.type() === "error") runtimeErrors.push(m.text().replace(/[A-Za-z0-9_-]{40,}/g, "[redacted]")); });
         page.on("requestfailed", req => networkEvents.push(new URL(req.url()).pathname + ": " + req.failure()?.errorText));
@@ -304,8 +306,11 @@ for (const n of [2, 3, 4, 5, 6])
         for (let i=0; i<contexts.length; i++) {
           const page=contexts[i].pages()[0];
           if (page && !page.isClosed()) {
-            await info.attach("failure-ui-"+i, { body: (await page.locator("body").innerText()).replace(/[A-Za-z0-9_-]{40,}/g,"[redacted]"), contentType: "text/plain" });
-            await info.attach("failure-canvas-"+i,{ body: await page.locator("canvas").first().screenshot(), contentType:"image/png" });
+            await info.attach("failure-url-"+i, { body: new URL(page.url()).pathname, contentType:"text/plain" });
+            try {
+              await info.attach("failure-ui-"+i, { body: (await page.locator("body").innerText({timeout:2000})).replace(/[A-Za-z0-9_-]{40,}/g,"[redacted]"), contentType: "text/plain" });
+              await info.attach("failure-canvas-"+i,{ body: await page.locator("canvas").first().screenshot({timeout:3000}), contentType:"image/png" });
+            } catch { /* Preserve the original failure if the renderer stops responding. */ }
           }
         }
       for (const c of contexts) await c.close();
