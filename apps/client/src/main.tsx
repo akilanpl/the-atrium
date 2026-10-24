@@ -490,6 +490,7 @@ function App() {
               <label>
                 MAIN MECHANISM
                 <select
+                  aria-label="MAIN MECHANISM"
                   disabled={me?.ready}
                   value={state.workshop?.variant || 0}
                   onChange={(e) =>
@@ -586,6 +587,7 @@ function App() {
               <label>
                 YOUR CLUE
                 <textarea
+                  aria-label="YOUR CLUE"
                   maxLength={180}
                   value={clue}
                   onChange={(e) => setClue(e.target.value)}

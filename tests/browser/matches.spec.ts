@@ -248,6 +248,14 @@ for (const n of [2, 3, 4, 5, 6])
         await renderedWorld(t.page, info, t.own);
         const u = UNIVERSES.find((u) => u.name === t.own)!;
         expect(u).toBeTruthy();
+        const variant=t.page.getByLabel('MAIN MECHANISM',{exact:true});
+        await variant.selectOption('1');
+        await t.page.waitForTimeout(250);
+        await expect(variant).toHaveValue('1');
+        await variant.selectOption('0');
+        await t.page.waitForTimeout(250);
+        await expect(variant).toHaveValue('0');
+        observed.push('configured-mechanism:'+u.id);
         await act(t, u.mechanisms[0]);
         await expect(t.page.locator(".toast")).toContainText("activated");
         await act(t, u.anchors[0], true);
@@ -359,9 +367,10 @@ for (const n of [2, 3, 4, 5, 6])
       await info.attach("observed-milestones", {body:JSON.stringify(observed),contentType:"application/json"});
       await info.attach("network-events", { body: JSON.stringify(networkEvents), contentType: "application/json" });
       await info.attach("console-errors", { body: JSON.stringify(runtimeErrors), contentType: "application/json" });
+      const evidencePages=contexts.flatMap(c=>c.pages());
       if (!completed)
-        for (let i=0; i<contexts.length; i++) {
-          const page=contexts[i].pages()[0];
+        for (let i=0; i<evidencePages.length; i++) {
+          const page=evidencePages[i];
           if (page && !page.isClosed()) {
             await info.attach("failure-url-"+i, { body: new URL(page.url()).pathname, contentType:"text/plain" });
             try {
