@@ -14,6 +14,7 @@ export default defineConfig({
     baseURL: "http://127.0.0.1:5174",
     actionTimeout: 60000,
     viewport: { width: 1280, height: 800 },
+    storageState: { cookies: [], origins: [{ origin: "http://127.0.0.1:5174", localStorage: [{name:"atrium:quality",value:"LOW"}] }] },
     headless: true,
     channel: "chromium",
     launchOptions: { args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"] },

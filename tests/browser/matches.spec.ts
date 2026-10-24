@@ -155,6 +155,8 @@ for (const n of [2, 3, 4, 5, 6])
         const context = await browser.newContext({
           baseURL: "http://127.0.0.1:5174",
           viewport: { width: 1280, height: 800 },
+          // Public graphics preference only; no credentials or competitive state.
+          storageState: { cookies: [], origins: [{origin:"http://127.0.0.1:5174",localStorage:[{name:"atrium:quality",value:"LOW"}]}] },
         });
         context.setDefaultTimeout(60000);
         contexts.push(context);
