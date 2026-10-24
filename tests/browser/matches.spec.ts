@@ -88,6 +88,9 @@ async function move(t: Traveler, target: Point, reach = 1.8) {
   }
 }
 async function aim(t: Traveler, target: Point) {
+  const nav=t.page.getByLabel('Navigation readout');
+  t.angle=Number(await nav.getAttribute('data-heading'))*Math.PI/180;
+  t.pitch=Number(await nav.getAttribute('data-camera-pitch'));
   const at = await position(t.page),
     desired = Math.atan2(at.x - target.x, at.z - target.z),
     delta = Math.atan2(
@@ -115,11 +118,23 @@ async function aim(t: Traveler, target: Point) {
   }
   t.angle += delta;
   t.pitch = desiredPitch;
-  await t.page.waitForTimeout(350);
+  await t.page.waitForTimeout(500);
 }
 async function act(t: Traveler, object: Interactable, hide = false) {
   await move(t, object);
-  await aim(t, object);
+  const preparation=(await phase(t.page).innerText()).includes('PREPARATION');
+  const prompt=preparation
+    ? t.page.locator('.prepare').getByText(hide ? 'Hold E · hide at '+object.name : 'E · '+object.name,{exact:true})
+    : t.page.getByRole('button',{name:new RegExp('E.*'+object.name)});
+  // Wind/current continue during inspection. Re-aim from the visible HUD rather
+  // than waiting motionless while an environmental force carries us out of reach.
+  for(let attempt=0;attempt<12;attempt++) {
+    const at=await position(t.page);
+    if(Math.hypot(at.x-object.x,at.z-object.z)>2.3 || Math.abs(at.y-object.y)>0.8) await move(t,object);
+    await aim(t,object);
+    if(await prompt.isVisible()) break;
+  }
+  await expect(prompt).toBeVisible({timeout:5000});
   if (hide) {
     await expect(
       t.page.getByRole("button", { name: "Hold to hide key at the reticle" }),
