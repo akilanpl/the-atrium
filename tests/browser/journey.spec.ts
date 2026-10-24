@@ -111,3 +111,46 @@ test("cinematic journey: mobile, reduced motion and renderer fallback", async ({
     ),
   ).toBe(true);
 });
+
+test("cinematic journey: live renderer resizes across mobile, tablet and desktop", async ({
+  page,
+}) => {
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/");
+  await page.getByRole("button", { name: "Menu", exact: true }).click();
+  await expect(page.locator(".journey-links")).toBeVisible();
+  await page.getByRole("button", { name: "Menu", exact: true }).click();
+  for (const viewport of [
+    { width: 390, height: 844 },
+    { width: 768, height: 1024 },
+    { width: 1440, height: 900 },
+  ]) {
+    await page.setViewportSize(viewport);
+    await expect(page.locator("#arrival h1")).toBeVisible();
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+    ).toBe(true);
+    await page.screenshot({ path: `work/journey-${viewport.width}.png` });
+  }
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await expect
+    .poll(() =>
+      page
+        .locator(".journey-hero-art")
+        .evaluate((el) => getComputedStyle(el).animationName),
+    )
+    .toBe("none");
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await expect
+    .poll(() =>
+      page
+        .locator(".journey-hero-art")
+        .evaluate((el) => getComputedStyle(el).animationName),
+    )
+    .toBe("arrival-drift");
+  expect(errors).toEqual([]);
+});
