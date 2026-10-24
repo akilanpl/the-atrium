@@ -1,18 +1,15 @@
 import { useRef, useEffect } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
-import {
-  canOccupy,
-  WALK_SPEED,
-  RUN_SPEED,
-  type Snapshot,
-} from "../../../packages/shared/src/world";
+import { type Snapshot } from "../../../packages/shared/src/world";
 import type { Connection } from "./network";
+import { transitionIdentity } from "./presentation";
 import { shortestAngle } from "./motion";
 import { reducedMotion } from "./settings";
 export interface Motor {
   x: number;
   z: number;
+  y: number;
   yaw: number;
   speed: number;
   moving: boolean;
@@ -22,11 +19,13 @@ export function Controls({
   room,
   interact,
   motor,
+  onView,
 }: {
   state: Snapshot | null;
   room: Connection | null;
-  interact: () => void;
+  interact: (release?: boolean) => void;
   motor: React.RefObject<Motor>;
+  onView: (view: { heading: number; pitch: number }) => void;
 }) {
   const keys = useRef(new Set<string>()),
     angle = useRef(0.1),
@@ -40,6 +39,12 @@ export function Controls({
     scan = useRef(0),
     ray = useRef(new THREE.Raycaster());
   callback.current = interact;
+  const recenter = useRef(false);
+  const opening = useRef((() => {
+    try { return sessionStorage.getItem("atrium:intro") ? 6 : 0; } catch { return 0; }
+  })());
+  const viewTick = useRef(0);
+  const sequence = useRef(0);
   const actionSeen = useRef(0),
     facingTarget = useRef(0),
     facingUntil = useRef(0);
@@ -47,19 +52,40 @@ export function Controls({
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
       if ((e.target as HTMLElement).closest("input,textarea,select")) return;
-      if (["KeyW", "KeyA", "KeyS", "KeyD", "Space"].includes(e.code))
+      if (
+        [
+          "KeyW",
+          "KeyA",
+          "KeyS",
+          "KeyD",
+          "Space",
+          "ArrowLeft",
+          "ArrowRight",
+          "ArrowUp",
+          "ArrowDown",
+        ].includes(e.code)
+      )
         e.preventDefault();
       keys.current.add(e.code);
       if (e.code === "KeyE" && !e.repeat) callback.current();
-      if (e.code === "KeyR") angle.current = motor.current.yaw + Math.PI;
+      if (e.code === "KeyR") recenter.current = true;
+      if (e.code === "Escape") opening.current = 6;
     };
-    const up = (e: KeyboardEvent) => keys.current.delete(e.code);
+    const up = (e: KeyboardEvent) => {
+      keys.current.delete(e.code);
+      if (
+        e.code === "KeyE" &&
+        !(e.target as HTMLElement).closest("input,textarea,select")
+      )
+        callback.current(true);
+    };
     const clear = () => {
       keys.current.clear();
       velocity.current.set(0, 0);
     };
     const mouse = (e: MouseEvent) => {
       if (e.buttons === 2) {
+        recenter.current = false;
         angle.current -= e.movementX * 0.0035;
         pitch.current = THREE.MathUtils.clamp(
           pitch.current + e.movementY * 0.0025,
@@ -78,6 +104,8 @@ export function Controls({
         );
       }
     };
+    const skipIntro = () => { opening.current = 6; };
+    window.addEventListener("atrium:skip-intro", skipIntro);
     window.addEventListener("keydown", down);
     window.addEventListener("keyup", up);
     window.addEventListener("blur", clear);
@@ -85,6 +113,7 @@ export function Controls({
     window.addEventListener("mousemove", mouse);
     window.addEventListener("wheel", wheel, { passive: false });
     return () => {
+      window.removeEventListener("atrium:skip-intro", skipIntro);
       window.removeEventListener("keydown", down);
       window.removeEventListener("keyup", up);
       window.removeEventListener("blur", clear);
@@ -96,23 +125,62 @@ export function Controls({
   useFrame(({ camera, clock, scene }, rawDt) => {
     const dt = Math.min(rawDt, 0.05);
     if (!room) {
-      const target = new THREE.Vector3(9.5, 5.2, 11.7);
+      opening.current = Math.min(6, opening.current + dt);
+      const t = reducedMotion() ? 1 : opening.current / 6;
+      const eased = t * t * (3 - 2 * t);
+      const target = new THREE.Vector3(
+        3.5 + eased * 6,
+        3.2 + eased * 2,
+        15 - eased * 3.3,
+      );
       camera.position.lerp(target, 1 - Math.exp(-dt * 3));
       camera.lookAt(0, 2.4, 0);
       return;
     }
     if (!local) return;
-    const key = state!.phase + state!.owner + state!.round;
+    if (recenter.current) {
+      const turn = shortestAngle(angle.current, motor.current.yaw + Math.PI);
+      angle.current += turn * (1 - Math.exp(-dt * 7));
+      if (Math.abs(turn) < 0.01) recenter.current = false;
+    }
+    angle.current +=
+      (+keys.current.has("ArrowLeft") - +keys.current.has("ArrowRight")) *
+      dt *
+      1.4;
+    pitch.current = THREE.MathUtils.clamp(
+      pitch.current +
+        (+keys.current.has("ArrowUp") - +keys.current.has("ArrowDown")) *
+          dt *
+          0.45,
+      -0.05,
+      1,
+    );
+
+    const key = transitionIdentity(
+      state!.epoch,
+      state!.owner,
+      state!.phase,
+      state!.round,
+    );
+    const changed = tag.current !== key;
     if (tag.current !== key) {
       tag.current = key;
       Object.assign(motor.current, {
         x: local.x,
         z: local.z,
+        y: local.y,
         yaw: local.yaw,
         speed: 0,
       });
       velocity.current.set(0, 0);
       scan.current = 0;
+    }
+    if (clock.elapsedTime - viewTick.current > 0.1) {
+      viewTick.current = clock.elapsedTime;
+      onView({
+        heading: THREE.MathUtils.radToDeg(angle.current),
+        pitch: pitch.current,
+      });
     }
     const p = motor.current;
     const forward = +keys.current.has("KeyW") - +keys.current.has("KeyS"),
@@ -122,28 +190,12 @@ export function Controls({
       -forward * Math.cos(angle.current) - side * Math.sin(angle.current),
     );
     if (wish.lengthSq() > 0) wish.normalize();
-    const targetSpeed =
-      keys.current.has("ShiftLeft") || keys.current.has("ShiftRight")
-        ? RUN_SPEED
-        : WALK_SPEED;
-    wish.multiplyScalar(targetSpeed);
-    velocity.current.lerp(
-      wish,
-      1 - Math.exp(-dt * (wish.lengthSq() ? 12 : 18)),
-    );
-    if (velocity.current.length() < 0.025) velocity.current.set(0, 0);
-    const before = new THREE.Vector2(p.x, p.z);
-    const dx = velocity.current.x * dt,
-      dz = velocity.current.y * dt;
-    const valid = (x: number, z: number) =>
-      canOccupy(x, z, !!state?.owner, !!state?.open, 0.32);
-    if (valid(p.x + dx, p.z)) p.x += dx;
-    else velocity.current.x = 0;
-    if (valid(p.x, p.z + dz)) p.z += dz;
-    else velocity.current.y = 0;
-    p.speed =
-      before.distanceTo(new THREE.Vector2(p.x, p.z)) / Math.max(0.001, dt);
+    p.x = THREE.MathUtils.damp(p.x, local.x, 18, dt);
+    p.z = THREE.MathUtils.damp(p.z, local.z, 18, dt);
+    p.y = THREE.MathUtils.damp(p.y || 0, local.y, 18, dt);
+    p.speed = local.speed;
     p.moving = p.speed > 0.08;
+    velocity.current.set(local.vx, local.vz);
     if (local.action !== actionSeen.current) {
       actionSeen.current = local.action;
       facingTarget.current = local.yaw;
@@ -161,12 +213,16 @@ export function Controls({
         (1 - Math.exp(-dt * 14));
     if (clock.elapsedTime - last.current > 0.05) {
       last.current = clock.elapsedTime;
-      room.send("move", { x: p.x, z: p.z, yaw: p.yaw });
-      if (Math.hypot(local.x - p.x, local.z - p.z) > 1.4) {
-        p.x = local.x;
-        p.z = local.z;
-        velocity.current.set(0, 0);
-      }
+      room.send("input", {
+        epoch: state!.epoch,
+        seq: ++sequence.current,
+        x: wish.x,
+        z: wish.y,
+        yaw: p.yaw,
+        run: keys.current.has("ShiftLeft") || keys.current.has("ShiftRight"),
+        jump: keys.current.has("Space"),
+        descend: keys.current.has("KeyC"),
+      });
     }
     if (clock.elapsedTime - scan.current > 0.5) {
       scan.current = clock.elapsedTime;
@@ -175,17 +231,20 @@ export function Controls({
         if (o.userData.cameraBlock) blockers.current.push(o);
       });
     }
-    const eye = new THREE.Vector3(p.x, 1.4, p.z),
+    const eye = new THREE.Vector3(p.x, p.y + 1.4, p.z),
       target = new THREE.Vector3(
         p.x + Math.sin(angle.current) * distance.current,
-        1.4 + pitch.current * distance.current,
+        p.y + 1.4 + pitch.current * distance.current,
         p.z + Math.cos(angle.current) * distance.current,
       );
     const direction = target.clone().sub(eye).normalize();
+    const cameraRight = new THREE.Vector3()
+      .crossVectors(direction, camera.up)
+      .normalize();
     let safe = eye.distanceTo(target);
     for (const offset of [-0.18, 0, 0.18]) {
       ray.current.set(
-        eye.clone().add(new THREE.Vector3(offset, 0, 0)),
+        eye.clone().addScaledVector(cameraRight, offset),
         direction,
       );
       ray.current.near = 0.05;
@@ -195,7 +254,10 @@ export function Controls({
     }
     target.copy(eye).addScaledVector(direction, safe);
     const blocked = camera.position.distanceTo(eye) > safe + 0.1;
-    camera.position.lerp(target, blocked ? 1 : 1 - Math.exp(-dt * 12));
+    camera.position.lerp(
+      target,
+      blocked || changed ? 1 : 1 - Math.exp(-dt * 12),
+    );
     camera.position.y = Math.max(0.4, camera.position.y);
     camera.lookAt(eye);
     if (camera instanceof THREE.PerspectiveCamera) {

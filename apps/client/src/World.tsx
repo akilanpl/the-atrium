@@ -1,3 +1,7 @@
+import { atmosphere } from "./presentation";
+import { LivingWorld } from "./environments/LivingWorld";
+import { Rewards } from "./Rewards";
+import { WorldInteractions, Targeting } from "./environments/Interactions";
 import { lazy, Suspense, useEffect, useRef, memo } from "react";
 import { useFrame } from "@react-three/fiber";
 import { Environment } from "@react-three/drei";
@@ -12,8 +16,17 @@ import Atrium from "./environments/Atrium";
 import { Dust } from "./environments/Architecture";
 import { GRAPHICS, reducedMotion, type Quality } from "./settings";
 import { ambienceFor, sound } from "./audio";
+const scenes = {
+  observatory: lazy(() => import("./environments/Observatory")),
+  sanctuary: lazy(() => import("./environments/Sanctuary")),
+  forge: lazy(() => import("./environments/Forge")),
+  manor: lazy(() => import("./environments/Manor")),
+  garden: lazy(() => import("./environments/Garden")),
+};
 const Library = lazy(() => import("./environments/Library"));
+const CachedLibrary = memo(Library);
 export interface PerformanceSample {
+  sampledAt: number;
   fps: number;
   frameMs: number;
   p95: number;
@@ -33,12 +46,13 @@ function Measurement({
       elapsed.current = 0;
       return;
     }
-    if (dt < 0.2) frames.current.push(dt * 1000);
+    if (Number.isFinite(dt) && dt > 0) frames.current.push(dt * 1000);
     elapsed.current += dt;
-    if (elapsed.current > 3 && frames.current.length > 20) {
+    if (elapsed.current > 3 && frames.current.length > 2) {
       const a = frames.current.sort((x, y) => x - y);
       const mean = a.reduce((s, x) => s + x, 0) / a.length;
       onSample({
+        sampledAt: Date.now(),
         fps: Math.round(1000 / mean),
         frameMs: +mean.toFixed(1),
         p95: +a[Math.floor(a.length * 0.95)].toFixed(1),
@@ -67,8 +81,8 @@ function Soundscape({
     tick = useRef(0);
   const me = state?.players.find((p) => p.id === playerId);
   useEffect(() => {
-    void ambienceFor(!!state?.owner);
-  }, [state?.owner]);
+    void ambienceFor(state?.owner ? state.world : "");
+  }, [state?.owner, state?.world]);
   useEffect(() => {
     const count = me?.keys.length || 0;
     if (count > keys.current) void sound("key");
@@ -85,6 +99,8 @@ function Soundscape({
   useFrame((_, dt) => {
     if (!state) return;
     distance.current += motor.current.speed * dt;
+    if (me && !me.grounded && state.world !== "sanctuary") distance.current = 0;
+    if (state.world === "sanctuary") distance.current = 0;
     if (distance.current > (motor.current.speed > 2.6 ? 0.76 : 0.79)) {
       distance.current = 0;
       void sound(state.owner ? "wood" : "stone", 0.3);
@@ -101,19 +117,31 @@ function Decoration({
   state,
   room,
   quality,
+  target,
 }: {
+  target: string;
   state: Snapshot | null;
   room: Connection | null;
   quality: Quality;
 }) {
   const palette = usePalette();
+  const Scene =
+    state?.world && state.world !== "library" ? scenes[state.world] : null;
   return (
     <>
       {state?.owner ? (
-        <Library palette={palette} open={!!state.open} />
+        <>
+          {Scene ? (
+            <Scene state={state} palette={palette} />
+          ) : (
+            <CachedLibrary palette={palette} open={!!state.open} />
+          )}
+          <WorldInteractions state={state} target={target} />
+        </>
       ) : (
         <Atrium palette={palette} state={state} playerId={room?.sessionId} />
       )}
+      <LivingWorld state={state} palette={palette} quality={quality} />
       <Dust
         count={GRAPHICS[quality].particles}
         library={!!state?.owner}
@@ -128,12 +156,18 @@ const decorationSignature = (s: Snapshot | null) =>
         s.owner,
         s.phase,
         s.open,
+        s.world,
+        JSON.stringify(s.mechanism),
+        s.layout.join(),
+        s.decoys.join(),
+        s.workshop?.anchor,
         s.players.map((p) => `${p.id}:${p.name}:${p.keys.length}`).join("|"),
       ].join(":")
     : "landing";
 const Decor = memo(
   Decoration,
   (a, b) =>
+    a.target === b.target &&
     a.quality === b.quality &&
     a.room === b.room &&
     decorationSignature(a.state) === decorationSignature(b.state),
@@ -144,34 +178,64 @@ export function World({
   interact,
   quality,
   onSample,
+  target,
+  onTarget,
+  onView,
+  controlsEnabled = true,
 }: {
+  controlsEnabled?: boolean;
   state: Snapshot | null;
   room: Connection | null;
-  interact: () => void;
+  interact: (release?: boolean) => void;
+  target: string;
+  onTarget: (id: string) => void;
+  onView: (view: { heading: number; pitch: number }) => void;
   quality: Quality;
   onSample: (p: PerformanceSample) => void;
 }) {
-  const motor = useRef<Motor>({ x: 0, z: 6, yaw: 0, speed: 0, moving: false });
+  const motor = useRef<Motor>({
+    x: 0,
+    y: 0,
+    z: 6,
+    yaw: 0,
+    speed: 0,
+    moving: false,
+  });
   const preset = GRAPHICS[quality];
+  const mood = atmosphere(state?.owner ? state.world : "");
   return (
     <>
-      <Controls state={state} room={room} interact={interact} motor={motor} />
+      {controlsEnabled && (
+        <Controls
+          state={state}
+          room={room}
+          interact={interact}
+          motor={motor}
+          onView={onView}
+        />
+      )}
       <Measurement onSample={onSample} />
+      <Rewards state={state} playerId={room?.sessionId} />
+      <Targeting state={state} onTarget={onTarget} playerId={room?.sessionId} />
       <Soundscape state={state} motor={motor} playerId={room?.sessionId} />
-      <color attach="background" args={["#10181d"]} />
+      <color attach="background" args={[mood.sky]} />
       <fog
         attach="fog"
-        args={["#18232a", state?.owner ? 14 : 28, preset.far]}
+        args={[
+          mood.fog,
+          state?.world === "sanctuary" ? 5 : state?.owner ? 14 : 28,
+          preset.far,
+        ]}
       />
       <ambientLight intensity={state?.owner ? 0.35 : 0.22} />
       <hemisphereLight
-        args={["#a8bdc9", "#4a3225", state?.owner ? 0.75 : 0.55]}
+        args={[mood.fill, mood.ground, state?.owner ? 0.75 : 0.55]}
       />
       <directionalLight
         key={quality}
         position={state?.owner ? [4, 6.5, 7] : [4, 11, 7]}
-        color="#ffe5bc"
-        intensity={2.2}
+        color={mood.sun}
+        intensity={mood.intensity}
         castShadow={preset.shadows}
         shadow-mapSize={[preset.shadowSize, preset.shadowSize]}
         shadow-camera-left={-17}
@@ -213,15 +277,21 @@ export function World({
             <Label position={[0, 2, 0]} text="Opening the palace…" wide />
           }
         >
-          <Decor state={state} room={room} quality={quality} />
+          <Decor state={state} room={room} quality={quality} target={target} />
         </Suspense>
       </AssetGuard>
       {state?.players
-        .filter((p) => p.connected && p.room === (state.owner || ""))
+        .filter(
+          (p) =>
+            p.connected &&
+            p.room === (state.owner || "") &&
+            (!state.owner || p.id === room?.sessionId),
+        )
         .map((p) => (
           <Character
             key={p.id}
             player={p}
+            world={state?.owner ? state.world : ""}
             motor={p.id === room?.sessionId ? motor : undefined}
           />
         ))}

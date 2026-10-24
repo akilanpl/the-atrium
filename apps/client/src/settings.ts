@@ -1,6 +1,6 @@
 export const GRAPHICS = {
   LOW: {
-    dpr: 1,
+    dpr: 0.75,
     shadows: false,
     shadowSize: 512,
     particles: 45,

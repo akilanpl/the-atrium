@@ -1,41 +1,46 @@
-# Rendering and performance
+# Performance — milestone 05
 
-Presets are functional and persist locally. The settings panel also provides master/effects volume and mute. FPS shown in the HUD is sampled from active-tab frame callbacks; it is not a GPU timer or a hardware guarantee.
+Measured locally on macOS arm64 in the Codex in-app browser, 1280×800. Exact Apple chip/RAM were unavailable through permitted system queries; no specific hardware model is claimed. Browser samples are short three-second intervals, not sustained hardware qualification. Six rendering contexts share one machine and compete for resources. Dev server, browser and test processes introduce load variation.
 
-| Setting         | LOW |   MEDIUM |     HIGH |
-| --------------- | --: | -------: | -------: |
-| Pixel ratio     |   1 |     1.25 |     1.75 |
-| Shadows         | Off | 1024 map | 2048 map |
-| Dust points     |  45 |      110 |      220 |
-| Fog/draw range  |  55 |       75 |      100 |
-| HDR environment | Off |       On |       On |
+## Rendering evidence
 
-One directional light casts shadows. Other practical sources use no real-time shadow maps. The renderer uses ACES filmic tone mapping, moderate exposure and native antialiasing. Heavy AO, bloom, motion blur, SSR and true volumetrics are not implemented. Renderer antialias context creation follows the initial quality; changing presets live adjusts the other settings without recreating the whole game.
+| World, six simultaneous browser renderers, MEDIUM | FPS | Mean ms | p95 ms | Draw calls | Triangles |
+|---|---:|---:|---:|---:|---:|
+| Shifting Manor | 42 | 24.1 | 37.3 | 65 | 43,523 |
+| Astral Observatory | 37 | 26.8 | 48.8 | 76 | 46,777 |
+| Sunken Sanctuary | 40 | 25.2 | 44.9 | 82 | 41,967 |
+| Clockwork Library | 37 | 27.0 | 44.1 | 171 | 56,392 |
+| Tempest Garden | 37 | 27.0 | 43.4 | 76 | 41,409 |
+| Polarity Forge | 33 | 30.3 | 51.3 | 62 | 42,603 |
 
-## Implemented optimizations
+A LOW six-browser/six-avatar Atrium sample measured 38 FPS, 26 ms mean, 38.3 ms p95, 261 calls and 248,140 triangles. One active renderer with six connected participants in Observatory measured 60 FPS, 16.7 ms mean, 18.4 ms p95, 69 calls and 47,071 triangles. That is not a six-renderer Atrium measurement. Raw sample JSON and screenshots are in the milestone handoff.
 
-- Instanced floor accents and shelf books; shared material palette.
-- Memoized architectural decoration avoids rebuilding scene materials on 20 Hz position snapshots.
-- Cached local GLBs and HDR; skeleton clones share cached geometry/textures and own materials/mixers.
-- Character source morphs baked down to two eyelid targets, with covered skin triangles removed.
-- Prop textures resized to 512; surfaces/HDR are 1K. All prepared assets total about 18 MB on disk; character GLBs are approximately 4 MB each.
-- Library code is lazy-loaded; loader progress and explicit missing-asset fallbacks are present.
-- Remote interpolation, bounded simulation delta, teleport correction and local animation derivation.
-- Camera blocker scans are cached briefly; only blocker geometry is raycast, excluding name sprites.
-- Motes/FOV motion respect reduced-motion preferences. No external font download is required.
+45–60 FPS is not established for six concurrent renderers or sustained real-world sessions. Architectural/skinned-character draw calls, shadow passes, transparent hair and shader/asset startup remain plausible bottlenecks; no GPU profiler result is available. Measurement ignores dt≥200ms, so these samples exclude long stalls and are not a loading/jank guarantee.
 
-## Actual samples
+## Networking and memory
 
-In-app browser, controlled **1280×800 CSS-pixel** viewport, during development. GPU/hardware identity was not established. These are short active-tab samples, not a sustained benchmark; other tabs and concurrent builds sometimes competed for resources.
+Real private-admission socket matches used input commands, timed hiding, all opponent rounds, key collection, portal winner consensus and replay. Loopback only. Values are received application-frame byte counts, excluding TLS/TCP and uplink overhead; short matches are not production capacity limits. RSS is the local server process measurement during the test, not isolated room marginal cost. Test timing varies with local load.
 
-| Scene/preset                                                  | Mean FPS | Mean frame | 95th-percentile frame | Main render calls / triangles |
-| ------------------------------------------------------------- | -------: | ---------: | --------------------: | ----------------------------: |
-| Landing, MEDIUM, portrait preview                             |       60 |    16.6 ms |               25.1 ms |                  453 / 82,498 |
-| Landing, LOW                                                  |       60 |    16.6 ms |               20.5 ms |                  453 / 82,498 |
-| Landing, HIGH, concurrent development work                    |       43 |    23.3 ms |               27.7 ms |                  453 / 82,498 |
-| Two-player atrium, MEDIUM, early sample                       |       49 |    20.6 ms |               40.9 ms |                 188 / 102,804 |
-| Final library, MEDIUM, one visible human / two-player session |       60 |    16.7 ms |               17.1 ms |                  146 / 54,630 |
+| Players | Rival rounds | Match seconds | Idle B/s/client | Match B/s/client | Server RSS MiB |
+|---:|---:|---:|---:|---:|---:|
+| 2 | 1 | 8.62 | 7,486 | 10,764 | 104.9 |
+| 3 | 2 | 12.90 | 9,651 | 14,076 | 103.3 |
+| 4 | 3 | 23.92 | 11,728 | 17,798 | 104.3 |
+| 5 | 4 | 22.01 | 13,894 | 22,304 | 105.5 |
+| 6 | 5 | 35.64 | 16,049 | 26,895 | 107.2 |
 
-Later medium playtest HUD samples ranged around 50–60 FPS in the atrium and 60 FPS in the library. Portal/material and scene-load transitions can temporarily reduce frame rate. These observations do not establish 45–60 FPS across Apple Silicon models, four-player games or long sessions. A dedicated hardware/latency matrix is still required.
+The original four-player WAITING implementation at e651d07 measured 14,954 B/s/client over 5.001 seconds. Current four-player idle measured 11,728 B/s/client (21.6% lower). Simulation remains 20 Hz; personalized snapshots now run at 10 Hz with interpolation. Expanded payloads still repeat static data; schema/delta updates are future work. Six-player match aggregate was 161,368 B/s. Client test-process heap was 20.5 MiB, not browser JS heap. Network synchronization latency/RTT and browser heap were not measured and must not be inferred from loopback match duration.
 
-Remaining bottlenecks include architectural draw calls, skinned-character draw calls, transparent hair, shadow passes, shader compilation and large loader/vendor code. Production build still reports a large main-chunk advisory (~404 KB gzip before assets); the separate library chunk is about 2 KB gzip. Further work should prioritize mesh merging/LOD and a repeatable performance run before adding postprocessing.
+## Payload and implemented controls
+
+Runtime assets: 25 files, 17,203,689 bytes (16.4 MiB). Latest production main JS is about 1.40 MB / 402 KB gzip; Vite's >500 KB warning remains. Library lazy chunk about 5.37 KB /1.98 KB gzip, shared new-world scenery about 6.59 KB /2.10 KB gzip. Entry modules are lazy but bundling shares their geometry; six independent large scene chunks are not claimed. Actual cold/warm game load duration was not recorded.
+
+Cached GLBs/textures, shared material palette, memoized existing architecture, frustum culling, bounded particles and LOW/MEDIUM/HIGH remain. New server simulation only advances connected loaded instances. Hidden/unfocused pages pause rendering where the browser reports those states; in-app multi-view focus semantics limit how much this helps. No general mesh-merging/instancing/LOD overhaul or next-world asset prefetch was completed. Broad prefetch could worsen this payload without measurement.
+
+Next acceptance: documented hardware, cold/warm load timing, ten-minute six-avatar and multi-room runs, browser heap/GPU profiling, WAN latency and packet capture, then measured draw-call/asset changes. Keep the local-alpha verdict until browser completion and representative sustained runs pass.
+
+## Milestone 06 source investigation
+
+The avatar animation path traversed every cloned model node every frame just to find eyelid morphs. Each shipped GLB has 276 nodes; six avatars at 60 FPS meant about 99,360 node visits/second for this lookup alone, before Three.js adds wrapper objects. Morph target references are now cached once per clone; per-frame work updates the small eyelid list. Animation mixer and transform interpolation retain their original rate and visual behavior. This is a structural CPU-work reduction, not a measured GPU/FPS improvement.
+
+Frame sampling now includes dt≥200ms stalls and can report slow software-renderer samples; earlier 05 numbers excluded those stalls and should not be compared as an equivalent new benchmark. Linux CI uses SwiftShader software WebGL to establish rendering/gameplay correctness. Those numbers are not Apple Silicon or discrete-GPU performance. Separate physical devices were unavailable. Full A/B/C performance records and any blocked metrics are recorded in the 06 handoff; no cross-device or sustained FPS gain is inferred from source optimization.

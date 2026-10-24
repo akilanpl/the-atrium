@@ -10,6 +10,12 @@ server {
     ssl_protocols TLSv1.2 TLSv1.3;
     root /srv/atrium/apps/client/dist;
     client_max_body_size 2k;
+    # Private staging: operator provisions a tester password file out of source control.
+    # Use a unique password per invited tester; never expose the listener without this
+    # gateway (or an equivalent reviewed VPN/access gateway).
+    auth_basic "Atrium private staging";
+    auth_basic_user_file /etc/nginx/atrium-testers.htpasswd;
+    add_header X-Robots-Tag "noindex, nofollow, noarchive" always;
     # Colyseus places ephemeral session/reconnect credentials in upgrade query strings.
     # Disable access logging here; never log request_uri, query strings or bodies upstream.
     access_log off;

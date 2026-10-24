@@ -7,6 +7,7 @@ import {
 } from "../../../packages/shared/src/world";
 import { Character } from "./Character";
 import * as THREE from "three";
+import { reducedMotion } from "./settings";
 import { save } from "./settings";
 export function AvatarSelect({
   value,
@@ -17,6 +18,13 @@ export function AvatarSelect({
 }) {
   const [portrait, setPortrait] = useState(false);
   const p: Player = {
+    y: 0,
+    vx: 0,
+    vy: 0,
+    vz: 0,
+    grounded: true,
+    universe: "",
+    inspections: 0,
     id: "preview",
     name: "Traveler",
     x: 0,
@@ -87,9 +95,15 @@ export function AvatarSelect({
 }
 
 function PortraitCamera({ close }: { close: boolean }) {
-  useFrame(({ camera }, dt) => {
+  useFrame(({ camera, clock }, dt) => {
     camera.position.lerp(
-      new THREE.Vector3(0, close ? 0.98 : 1.15, close ? 1.12 : 3.3),
+      new THREE.Vector3(
+        reducedMotion()
+          ? 0
+          : Math.sin(clock.elapsedTime * 0.15) * (close ? 0.08 : 0.35),
+        close ? 0.98 : 1.15,
+        close ? 1.12 : 3.3,
+      ),
       1 - Math.exp(-dt * 9),
     );
     camera.lookAt(0, close ? 0.86 : 0.05, 0);

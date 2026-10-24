@@ -1,3 +1,9 @@
+import {
+  UNIVERSES,
+  door,
+  type UniverseId,
+  type MechanismState,
+} from "./universes.js";
 export const ANCHORS = [
   "Grandfather clock",
   "Librarian desk",
@@ -29,6 +35,13 @@ export interface Player {
   name: string;
   x: number;
   z: number;
+  y: number;
+  vx: number;
+  vy: number;
+  vz: number;
+  grounded: boolean;
+  universe: UniverseId | "";
+  inspections: number;
   yaw: number;
   keys: string[];
   ready: boolean;
@@ -53,6 +66,21 @@ export interface Snapshot {
   winner: string;
   started: number;
   ended: number;
+  advanceAt: number;
+  epoch: string;
+  world: UniverseId | "";
+  mechanism: MechanismState;
+  layout: number[];
+  decoys: number[];
+  workshop?: {
+    anchor: number;
+    variant: number;
+    edits: number[];
+    decoys: number[];
+    previewProp?: number;
+  };
+  outcome: string;
+  overtime: boolean;
 }
 
 export const AVATARS = [
@@ -97,10 +125,15 @@ export function canOccupy(
   return ![
     { x: -2.9, z: 0, w: 0.6, d: 0.9 },
     { x: 2.9, z: 0, w: 0.6, d: 0.9 },
-    { x: 0, z: -10, w: 3.6, d: 0.6 },
-    { x: 0, z: 10, w: 3.6, d: 0.6 },
-    { x: 10, z: 0, w: 0.6, d: 3.6 },
-    { x: -10, z: 0, w: 0.6, d: 3.6 },
+    ...UNIVERSES.map((u) => {
+      const p = door(u.id);
+      return {
+        x: p.x,
+        z: p.z,
+        w: Math.abs(Math.cos(p.angle)) * 3.6 + 0.6,
+        d: Math.abs(Math.sin(p.angle)) * 3.6 + 0.6,
+      };
+    }),
   ].some(
     (b) =>
       Math.abs(x - b.x) < b.w / 2 + radius &&

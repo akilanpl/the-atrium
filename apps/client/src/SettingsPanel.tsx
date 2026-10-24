@@ -4,8 +4,12 @@ import { setAudio, unlockAudio } from "./audio";
 export function Settings({
   value,
   onChange,
+  navigation,
+  onNavigationChange,
 }: {
   value: Quality;
+  navigation: boolean;
+  onNavigationChange: (value: boolean) => void;
   onChange: (v: Quality) => void;
 }) {
   const [open, setOpen] = useState(false),
@@ -18,6 +22,13 @@ export function Settings({
     save("effects", String(fx));
     save("mute", String(muted));
   }, [volume, fx, muted]);
+  useEffect(() => {
+    const key = (event: KeyboardEvent) => {
+      if (event.code === "Escape") setOpen((value) => !value);
+    };
+    window.addEventListener("keydown", key);
+    return () => window.removeEventListener("keydown", key);
+  }, []);
   return (
     <div className="settings">
       <button
@@ -34,8 +45,18 @@ export function Settings({
         <section>
           <h3>Make yourself at home</h3>
           <label>
+            <input
+              type="checkbox"
+              aria-label="Navigation aids"
+              checked={navigation}
+              onChange={(e) => onNavigationChange(e.target.checked)}
+            />{" "}
+            Navigation aids · map coordinates
+          </label>
+          <label>
             GRAPHICS
             <select
+              aria-label="GRAPHICS"
               value={value}
               onChange={(e) => {
                 const v = quality(e.target.value);

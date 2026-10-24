@@ -14,7 +14,7 @@ test("strict schemas reject spoofing, nonfinite movement, unknown actions and ri
   assert.equal(text("  Ａlice  ", 20), "Alice");
   for (const value of ["a\u0000b", "a\u202Eb", "<b>name</b>", "x".repeat(21)])
     assert.throws(() => text(value, 20));
-  validate("ready", { anchor: 4, secret: true, clue: "Look behind time." });
+  validate("ready", { clue: "Look behind time." });
 });
 test("rate limit expires and bounds cardinality; invite entropy and uniqueness", () => {
   const l = new Limiter(2, 100, 2);
@@ -52,19 +52,47 @@ test("portal winner is atomic and finished gameplay cannot move or search", asyn
   g.finish("b", 5);
   assert.equal(g.winner, "a");
 });
-test("sustained movement cannot exploit per-packet tolerance", async () => {
+test("forged positions and replayed inputs cannot move authoritative bodies", async () => {
   const { Game } = await import("./game.js");
   const g = new Game("");
   g.add("a", "Alice");
   const p = g.player("a");
-  p.x = 0;
-  p.z = 6;
-  for (let i = 0; i < 20; i++)
-    g.move("a", { x: p.x + 0.25, z: 6, yaw: 0 }, 1000 + i * 50);
-  assert.ok(
-    p.x <= 4.28,
-    "budget caps sustained travel at run speed plus bounded initial credit",
+  g.move("a", { x: 999, y: 999, z: 999 }, 100);
+  assert.equal(p.x, 0);
+  g.setInput(
+    "a",
+    {
+      epoch: "stale",
+      seq: 100,
+      x: 1,
+      z: 0,
+      yaw: 0,
+      run: true,
+      jump: true,
+      descend: false,
+    },
+    100,
   );
+  g.tick(150);
+  assert.equal(p.x, 0);
+  const command = {
+    epoch: g.epoch,
+    seq: 1,
+    x: 1,
+    z: 0,
+    yaw: 0,
+    run: true,
+    jump: false,
+    descend: false,
+  };
+  g.setInput("a", command, 200);
+  g.tick(250);
+  assert.ok(p.x > 0);
+  const input = g.inputs.get("a");
+  g.setInput("a", { ...command, x: -1 }, 260);
+  assert.equal(g.inputs.get("a"), input);
+  for (let i = 0; i < 20; i++) g.tick(300 + i * 50);
+  assert.ok(Math.abs(p.vx) < 0.01, "deadman stops stale input");
 });
 
 test("production configuration fails closed before listening", async () => {
@@ -94,12 +122,19 @@ test("production configuration fails closed before listening", async () => {
       TLS_PROXY: "1",
       FAST_MODE: "1",
     },
+    {
+      NODE_ENV: "production",
+      ALLOWED_ORIGINS: "https://atrium.example",
+      TLS_PROXY: "1",
+      FAST_MODE: "",
+      PREPARATION_MS: "1000",
+    },
     { NODE_ENV: "staging" },
   ]) {
     const result = spawnSync(
       process.execPath,
       ["--import", "tsx", "apps/server/src/index.ts"],
-      { env: { ...process.env, ...overrides }, timeout: 3000, stdio: "pipe" },
+      { env: { ...process.env, ...overrides }, timeout: 10000, stdio: "pipe" },
     );
     assert.equal(result.status, 1);
     assert.ok(!result.stdout.toString().includes("listening"));

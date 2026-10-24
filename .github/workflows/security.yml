@@ -1,9 +1,32 @@
 name: Release checks
-on: [push, pull_request]
+on: [push]
+permissions:
+  contents: read
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   checks:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npm run release:check
+      - run: npm run security:history
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        players: [2, 3, 4, 5, 6, performance, journey, art-review]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -11,4 +34,18 @@ jobs:
           node-version: '24'
           cache: npm
       - run: npm ci
-      - run: npm run release:check
+      - run: npm run typecheck:browser
+      - run: PLAYWRIGHT_BROWSERS_PATH=./work/playwright-browsers npx playwright install --with-deps chromium
+      - run: xvfb-run -a npm run test:browser -- --grep '${{ matrix.players }}'
+        env:
+          ATRIUM_BROWSER_BACKEND: mesa
+          LIBGL_ALWAYS_SOFTWARE: '1'
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: browser-${{ matrix.players }}-players
+          path: |
+            work/05-playwright-results.json
+            work/browser-artifacts/
+            work/journey-*.png
+          retention-days: 7

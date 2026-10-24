@@ -26,25 +26,53 @@ export function validate(type: string | number, data: any) {
       if (data !== undefined && data !== null) throw Error("Invalid message.");
       return;
     case "ready":
-      shape(data, ["anchor", "secret", "clue"]);
-      if (
-        !Number.isInteger(data.anchor) ||
-        data.anchor < 0 ||
-        data.anchor > 4 ||
-        typeof data.secret !== "boolean"
-      )
-        throw Error("Invalid settings.");
+      shape(data, ["clue"]);
       data.clue = text(data.clue, 180);
       return;
-    case "move":
-      shape(data, ["x", "z", "yaw"]);
+    case "input":
+      shape(data, ["epoch", "seq", "x", "z", "yaw", "run", "jump", "descend"]);
       if (
+        typeof data.epoch !== "string" ||
+        data.epoch.length > 64 ||
+        !Number.isSafeInteger(data.seq) ||
+        data.seq < 0 ||
         ![data.x, data.z, data.yaw].every(Number.isFinite) ||
-        Math.abs(data.x) > 12 ||
-        Math.abs(data.z) > 12 ||
-        Math.abs(data.yaw) > Math.PI * 4
+        Math.abs(data.x) > 1 ||
+        Math.abs(data.z) > 1 ||
+        Math.abs(data.yaw) > Math.PI * 4 ||
+        ![data.run, data.jump, data.descend].every(
+          (v) => typeof v === "boolean",
+        )
       )
-        throw Error("Invalid movement.");
+        throw Error("Invalid input.");
+      return;
+    case "hide":
+    case "place":
+      shape(data, ["object"]);
+      text(data.object, 32);
+      return;
+    case "edit":
+      shape(data, ["prop", "slot"]);
+      if (
+        !Number.isInteger(data.prop) ||
+        data.prop < 0 ||
+        data.prop > 2 ||
+        ![0, 1].includes(data.slot)
+      )
+        throw Error("Invalid edit.");
+      return;
+    case "variant":
+      shape(data, ["variant"]);
+      if (![0, 1].includes(data.variant)) throw Error("Invalid variant.");
+      return;
+    case "decoy":
+      shape(data, ["anchor"]);
+      if (!Number.isInteger(data.anchor) || data.anchor < 0 || data.anchor > 4)
+        throw Error("Invalid decoy.");
+      return;
+    case "undo":
+    case "reset":
+      if (data !== undefined && data !== null) throw Error("Invalid edit.");
       return;
     case "interact":
       shape(data, ["object"]);

@@ -1,3 +1,4 @@
+import { MAX_PLAYERS } from "../../../packages/shared/src/universes.js";
 import express from "express";
 import { createServer } from "node:http";
 import { Server, Room, matchMaker, type Client } from "@colyseus/core";
@@ -30,6 +31,20 @@ if (
   throw Error("Configure exact ALLOWED_ORIGINS.");
 if (production && (process.env.FAST_MODE || process.env.TLS_PROXY !== "1"))
   throw Error("Production requires TLS_PROXY=1 and normal timers.");
+const duration = (name: string, fallback: number) => {
+  const raw = process.env[name];
+  if (raw === undefined) return fallback;
+  if (production) throw Error("Custom round timers are for non-production tests only.");
+  const n = Number(raw);
+  if (!Number.isInteger(n) || n < 1000 || n > 300000)
+    throw Error("Invalid round duration.");
+  return n;
+};
+const configuredDurations = [
+  duration("PREPARATION_MS", 120000),
+  duration("EXPLORATION_MS", 90000),
+  duration("FINALE_MS", 90000),
+];
 const creationKey = token();
 const ingress = new Limiter(40),
   upgrades = new Limiter(30);
@@ -39,7 +54,7 @@ let draining = false;
 const metrics = { denied: 0, invalidMessages: 0, floods: 0 };
 class AtriumRoom extends Room {
   game!: Game;
-  maxClients = 4;
+  maxClients = MAX_PLAYERS;
   maxMessagesPerSecond = 80;
   actionLimiter = new Limiter(8, 1000, 8);
   lockedJoins = false;
@@ -56,16 +71,14 @@ class AtriumRoom extends Room {
     this.seatReservationTimeout = 10;
     this.game = new Game(
       "",
-      process.env.FAST_MODE === "1"
-        ? [1500, 2500, 5000]
-        : [120000, 90000, 90000],
+      process.env.FAST_MODE === "1" ? [1500, 2500, 5000] : configuredDurations,
     );
     this.rotate();
     this.clock.setTimeout(() => this.disconnect(), 60 * 60 * 1000);
     this.onMessage("*", (client, type, data) => {
       if (
         !this.messageLimiter.take(client.sessionId) ||
-        (type !== "move" && !this.actionLimiter.take(client.sessionId))
+        (type !== "input" && !this.actionLimiter.take(client.sessionId))
       ) {
         metrics.floods++;
         client.leave(4408);
@@ -82,8 +95,23 @@ class AtriumRoom extends Room {
           case "ready":
             this.game.configure(id, data);
             break;
-          case "move":
-            this.game.move(id, data);
+          case "input":
+            this.game.setInput(id, data);
+            break;
+          case "hide":
+          case "place":
+            client.send(
+              "notice",
+              this.game.hide(id, data.object, type === "place"),
+            );
+            break;
+          case "edit":
+          case "variant":
+          case "decoy":
+          case "undo":
+          case "reset":
+            this.game.edit(id, String(type), data);
+            client.send("notice", "Room edit applied.");
             break;
           case "interact":
             client.send("notice", this.game.interact(id, data.object));
@@ -156,8 +184,10 @@ class AtriumRoom extends Room {
         client.send("notice", "Action unavailable or invalid.");
       }
     });
+    let snapshotTick = 0;
     this.setSimulationInterval(() => {
       this.game.tick();
+      if (++snapshotTick % 2) return;
       this.reports = this.reports.filter((r) => r.expires > Date.now());
       for (const c of this.clients) {
         const raw = (c as any).ref;
@@ -202,6 +232,8 @@ class AtriumRoom extends Room {
     }
   }
   onReconnect(client: Client) {
+    this.game.sequences.delete(client.sessionId);
+    this.game.inputs.delete(client.sessionId);
     client.reconnectionToken = token();
     this.game.player(client.sessionId).connected = true;
     client.send("snapshot", this.game.view(client.sessionId));
@@ -220,6 +252,10 @@ class AtriumRoom extends Room {
     this.reports = [];
     this.game.secrets.clear();
     this.game.opened.clear();
+    this.game.mechanisms.clear();
+    this.game.inputs.clear();
+    this.game.history.clear();
+    this.game.hiding.clear();
   }
 }
 const app = express();
@@ -230,7 +266,12 @@ app.get("/health", (_, res) =>
   res.status(draining ? 503 : 200).json({ ok: !draining }),
 );
 app.get("/ready", (_, res) =>
-  res.status(draining ? 503 : 200).json({ ok: !draining }),
+  res.status(draining ? 503 : 200).json({
+    ok: !draining,
+    ...(process.env.NODE_ENV === "test"
+      ? { rss: process.memoryUsage().rss }
+      : {}),
+  }),
 );
 app.post("/api/admit", async (req, res) => {
   try {

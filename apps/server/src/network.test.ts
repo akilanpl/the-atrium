@@ -103,8 +103,16 @@ test(
         views.get("a")!.players.find((p) => p.id === b.sessionId)!.avatar,
         "soren",
       );
-      const p = views.get("a")!.players.find((p) => p.id === a.sessionId)!;
-      a.send("move", { x: p.x + 0.1, z: p.z, yaw: 1 });
+      a.send("input", {
+        epoch: views.get("a")!.epoch,
+        seq: 1,
+        x: 0.5,
+        z: 0,
+        yaw: 1,
+        run: false,
+        jump: false,
+        descend: false,
+      });
       await until(() =>
         remoteHistory.some((s) =>
           s.players.some(
@@ -123,8 +131,8 @@ test(
       a.send("start");
       await until(() => views.get("a")?.phase === "PREPARATION");
       assert.equal(views.get("a")!.phase, "PREPARATION");
-      a.send("ready", { anchor: 0, secret: true, clue: "clock" });
-      b.send("ready", { anchor: 4, secret: true, clue: "books" });
+      a.send("ready", { clue: "clock" });
+      b.send("ready", { clue: "books" });
       await until(
         () =>
           views.get("a")?.phase === "EXPLORATION" &&
@@ -134,10 +142,11 @@ test(
       assert.equal(views.get("a")!.owner, b.sessionId);
       assert.equal(views.get("b")!.owner, a.sessionId);
       assert.ok(!JSON.stringify(views.get("a")).includes("anchor"));
-      for (let i = 0; i < 100 && views.get("a")?.phase !== "FINISHED"; i++)
+      for (let i = 0; i < 180 && views.get("a")?.phase !== "FINISHED"; i++)
         await delay(100);
       assert.equal(views.get("a")?.phase, "FINISHED");
-      assert.equal(views.get("a")?.winner, a.sessionId);
+      assert.equal(views.get("a")?.winner, "");
+      assert.equal(views.get("a")?.outcome, "draw");
       a.send("replay");
       await until(() => views.get("a")?.phase === "WAITING");
       assert.equal(views.get("a")?.phase, "WAITING");

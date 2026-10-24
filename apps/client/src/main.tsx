@@ -1,4 +1,10 @@
-import React, { useState, useCallback, useEffect } from "react";
+import {
+  MAX_PLAYERS,
+  MIN_PLAYERS,
+  universe,
+  objects,
+} from "../../../packages/shared/src/universes";
+import React, { useState, useCallback, useEffect, useRef } from "react";
 import { createRoot } from "react-dom/client";
 import { Canvas } from "@react-three/fiber";
 import { World, type PerformanceSample } from "./World";
@@ -14,13 +20,10 @@ import { unlockAudio } from "./audio";
 import { useProgress } from "@react-three/drei";
 import * as THREE from "three";
 import { admit, resume, type Connection } from "./network";
-import {
-  ANCHORS,
-  avatarId,
-  OBJECTS,
-  type Snapshot,
-} from "../../../packages/shared/src/world";
+import { avatarId, type Snapshot } from "../../../packages/shared/src/world";
 import "./style.css";
+import { Cinematic } from "./Cinematic";
+import { Journey } from "./Journey";
 function recovery() {
   try {
     return sessionStorage.getItem("atrium-resume");
@@ -37,7 +40,30 @@ function remember(value: string | null) {
     /* Play remains available without refresh recovery. */
   }
 }
+const ignoreView = () => {};
 function App() {
+  const [showJourney, setShowJourney] = useState(
+    new URLSearchParams(location.search).has("journey") &&
+      !recovery() &&
+      !location.hash.includes("invite="),
+  );
+  const [renderActive, setRenderActive] = useState(true);
+  const [navigation, setNavigation] = useState(false);
+  const [view, setView] = useState({ heading: 0, pitch: 0.32 });
+  useEffect(() => {
+    const update = () =>
+      setRenderActive(!document.hidden && document.hasFocus());
+    update();
+    window.addEventListener("focus", update);
+    window.addEventListener("blur", update);
+    document.addEventListener("visibilitychange", update);
+    return () => {
+      window.removeEventListener("focus", update);
+      window.removeEventListener("blur", update);
+      document.removeEventListener("visibilitychange", update);
+    };
+  }, []);
+
   const [avatar, setAvatar] = useState(avatarId(saved("avatar", "soren")));
   const [quality, setQuality] = useState<Quality>(
     parseQuality(saved("quality", "MEDIUM")),
@@ -47,6 +73,10 @@ function App() {
   );
   const loading = useProgress();
   const [hideClue, setHideClue] = useState(false);
+  const [target, setTarget] = useState("");
+  const [prop, setProp] = useState(0),
+    [slot, setSlot] = useState(0),
+    [previewEdit, setPreviewEdit] = useState(false);
   const [room, setRoom] = useState<Connection | null>(null),
     [state, setState] = useState<Snapshot | null>(null),
     [name, setName] = useState(""),
@@ -55,14 +85,13 @@ function App() {
     ),
     [notice, setNotice] = useState(""),
     [busy, setBusy] = useState(false),
-    [anchor, setAnchor] = useState(0),
-    [secret, setSecret] = useState(true),
     [clue, setClue] = useState("Time keeps more than hours."),
     [now, setNow] = useState(Date.now());
   useEffect(() => {
+    if (!room) return;
     const i = setInterval(() => setNow(Date.now()), 250);
     return () => clearInterval(i);
-  }, []);
+  }, [room]);
   useEffect(() => {
     if (!notice) return;
     const i = setTimeout(() => setNotice(""), 6000);
@@ -103,14 +132,29 @@ function App() {
       })
       .finally(() => setBusy(false));
   }, []);
+  useEffect(() => {
+    if (state?.phase === "PREPARATION") setClue(state.clue);
+    setPreviewEdit(false);
+  }, [state?.epoch, state?.phase]);
+  useEffect(() => {
+    const update = () => {
+      const invite = new URLSearchParams(location.hash.slice(1)).get("invite");
+      if (invite && !room) {
+        setCode(invite);
+        history.replaceState(null, "", location.pathname);
+      }
+    };
+    window.addEventListener("hashchange", update);
+    return () => window.removeEventListener("hashchange", update);
+  }, [room]);
   const connect = async (create: boolean) => {
     setBusy(true);
     unlockAudio();
     try {
       const c = code.trim();
       const r = await admit(create, c, name, avatar);
-      bind(r);
       setCode(c);
+      bind(r);
       history.replaceState(null, "", location.pathname);
     } catch (e) {
       setNotice((e as Error).message);
@@ -118,64 +162,67 @@ function App() {
       setBusy(false);
     }
   };
-  const interact = useCallback(() => {
-    if (!room || !state) return;
-    const p = state.players.find((p) => p.id === room.sessionId)!;
-    if (p.room) {
-      const nearest = [...OBJECTS]
-        .filter((o) => o.id !== "compartment" || state.open)
-        .sort(
-          (a, b) =>
-            Math.hypot(a.x - p.x, a.z - p.z) - Math.hypot(b.x - p.x, b.z - p.z),
-        )[0];
-      room.send("interact", { object: nearest.id });
-    } else if (state.phase === "FINALE") {
-      if (Math.hypot(p.x, p.z) < 2.8)
-        room.send("interact", { object: "portal" });
-      else {
-        const i = state.players.findIndex(
-          (_, i) =>
-            Math.hypot(
-              p.x - Math.sin((i * Math.PI) / 2) * 10,
-              p.z + Math.cos((i * Math.PI) / 2) * 10,
-            ) < 3,
-        );
-        if (i >= 0) room.send("visit", { owner: state.players[i].id });
-        else setNotice("Approach the portal or a rival’s door.");
+  const heldTarget = useRef("");
+  useEffect(() => {
+    heldTarget.current = "";
+  }, [room, state?.epoch, state?.owner, state?.phase]);
+  const focused = state?.world
+    ? objects(state.world).find((o) => o.id === target)
+    : null;
+  const interact = useCallback(
+    (release = false) => {
+      if (!room || !state) return;
+      const actionTarget = release ? heldTarget.current : target;
+      if (release) heldTarget.current = "";
+      if (!actionTarget) return;
+      if (
+        state.phase === "PREPARATION" &&
+        state.world &&
+        objects(state.world).find((o) => o.id === actionTarget)?.anchor !== -1
+      ) {
+        if (!release) heldTarget.current = actionTarget;
+        room.send(release ? "place" : "hide", { object: actionTarget });
+        return;
       }
-    } else setNotice("The host can begin when everyone has arrived.");
-  }, [room, state]);
-  const nearest =
-    me && state?.owner
-      ? [...OBJECTS]
-          .filter((o) => o.id !== "compartment" || state.open)
-          .sort(
-            (a, b) =>
-              Math.hypot(a.x - me.x, a.z - me.z) -
-              Math.hypot(b.x - me.x, b.z - me.z),
-          )[0]
-      : null;
-  const labels: Record<string, string> = {
-    clock: "Inspect the grandfather clock",
-    desk: "Search the librarian’s desk",
-    book: "Examine the hollow atlas",
-    statue: "Inspect the explorer’s monument",
-    trigger: "Pull the unfinished volume",
-    compartment: "Open the hidden compartment",
-    "book-east": "Read the eastern volumes",
-    "book-eastmost": "Read the bound chronicles",
-  };
-  const nearbyPrompt =
-    nearest && me && Math.hypot(nearest.x - me.x, nearest.z - me.z) <= 2.8
-      ? labels[nearest.id]
-      : "Approach an object to inspect";
+      if (release) return;
+      if (target.startsWith("door:")) {
+        const owner = state.players.find((p) => p.universe === target.slice(5));
+        if (owner) room.send("visit", { owner: owner.id });
+        else setNotice("This universe is sealed for this match.");
+      } else room.send("interact", { object: target });
+    },
+    [room, state, target],
+  );
+  const nearbyPrompt = focused
+    ? state?.phase === "PREPARATION" && focused.anchor >= 0
+      ? "Hold E · hide at " + focused.name
+      : "E · " + focused.name
+    : target === "portal"
+      ? "E · unlock portal"
+      : target.startsWith("door:")
+        ? "E · " + universe(target.slice(5)).name
+        : "Aim the reticle at an object";
+  const renderState =
+    state && previewEdit && state.workshop
+      ? {
+          ...state,
+          layout: state.layout.map((value, i) => (i === prop ? slot : value)),
+          workshop: { ...state.workshop, previewProp: prop },
+        }
+      : state;
   const remaining = Math.max(
     0,
-    Math.ceil(((state?.deadline || now) - now) / 1000),
+    Math.ceil(((state?.advanceAt || state?.deadline || now) - now) / 1000),
   );
+  if (showJourney && !room)
+    return <Journey onEnter={() => setShowJourney(false)} />;
   return (
-    <main onContextMenu={(e) => e.preventDefault()}>
+    <main
+      data-render-active={renderActive}
+      onContextMenu={(e) => e.preventDefault()}
+    >
       <Canvas
+        frameloop={!renderActive ? "never" : "always"}
         shadows={GRAPHICS[quality].shadows}
         camera={{
           position: [9.5, 5.2, 11.7],
@@ -185,21 +232,52 @@ function App() {
         }}
         dpr={GRAPHICS[quality].dpr}
         gl={{
-          antialias: quality !== "LOW",
+          // Context MSAA cannot be toggled after creation. Preset DPR supplies
+          // supersampling without leaving LOW stuck with the initial MSAA cost.
+          antialias: false,
           powerPreference: "high-performance",
           toneMapping: THREE.ACESFilmicToneMapping,
           toneMappingExposure: 0.9,
         }}
       >
         <World
-          state={state}
+          state={renderState}
+          target={target}
+          onTarget={setTarget}
+          onView={navigation ? setView : ignoreView}
           room={room}
           interact={interact}
           quality={quality}
           onSample={setPerformance}
         />
       </Canvas>
-      <Settings value={quality} onChange={setQuality} />
+      <Cinematic state={state} />
+      <Settings
+        value={quality}
+        onChange={setQuality}
+        navigation={navigation}
+        onNavigationChange={setNavigation}
+      />
+      {me && navigation && (
+        <output
+          className="navigation"
+          aria-label="Navigation readout"
+          data-x={me.x}
+          data-y={me.y}
+          data-z={me.z}
+          data-heading={view.heading}
+          data-camera-pitch={view.pitch}
+        >
+          Map E {me.x.toFixed(1)} / N {(-me.z).toFixed(1)} · {me.y.toFixed(1)} m
+          · Heading {Math.round(view.heading)}°
+        </output>
+      )}
+      {me && state?.owner && (
+        <output className="elevation" aria-label="Elevation">
+          {me.y.toFixed(1)} m ·{" "}
+          {state.world === "sanctuary" ? "Space ↑ / C ↓" : "Space to jump"}
+        </output>
+      )}
       {loading.active && (
         <div className="asset-progress" role="status">
           Preparing the palace · {Math.round(loading.progress)}%
@@ -211,7 +289,7 @@ function App() {
         </a>
         <div className="eyebrow">
           {state
-            ? `${state.phase} ${state.phase === "EXPLORATION" ? ` · ROUND ${state.round}/${state.players.length - 1}` : ""}`
+            ? `${state.phase}${state.overtime ? " · OVERTIME" : ""}${state.advanceAt ? " · NEXT ROUND" : ""} ${state.phase === "EXPLORATION" ? ` · ROUND ${state.round}/${state.players.length - 1}` : ""}`
             : "A MULTIPLAYER MYSTERY"}{" "}
           <b>
             {state?.deadline
@@ -219,7 +297,7 @@ function App() {
               : ""}
           </b>
         </div>
-        <span className="edition">VOL. 01 / CLOCKWORK LIBRARY</span>
+        <span className="edition">VOL. 01 / SIX UNIVERSES</span>
       </header>
       {!room && <AvatarSelect value={avatar} onChange={setAvatar} />}
       {!room ? (
@@ -261,7 +339,7 @@ function App() {
               </button>
             </div>
           </div>
-          <div className="eyebrow muted">2–4 PLAYERS · NO ACCOUNT NEEDED</div>
+          <div className="eyebrow muted">2–6 PLAYERS · NO ACCOUNT NEEDED</div>
           <details className="privacy-notice">
             <summary>Privacy & community rules</summary>
             <p>
@@ -302,7 +380,9 @@ function App() {
           <aside className="roster">
             <div className="eyebrow">
               PRIVATE LOBBY{" "}
-              <strong>{state?.players.length || 0}/4 PLAYERS</strong>
+              <strong>
+                {state?.players.length || 0}/{MAX_PLAYERS} PLAYERS
+              </strong>
             </div>
             <button
               className="quiet"
@@ -317,6 +397,10 @@ function App() {
             >
               Copy invite link ↗
             </button>
+            <details className="invite-token">
+              <summary>Manual invitation</summary>
+              <input aria-label="Invite token" readOnly value={code} />
+            </details>
             {state?.host === room.sessionId && (
               <>
                 <button
@@ -381,7 +465,8 @@ function App() {
               </div>
               <button
                 disabled={
-                  state.host !== room.sessionId || state.players.length < 2
+                  state.host !== room.sessionId ||
+                  state.players.length < MIN_PLAYERS
                 }
                 onClick={() => room.send("start")}
               >
@@ -391,50 +476,147 @@ function App() {
               </button>
             </section>
           )}
+          {room && (
+            <div className="reticle" aria-hidden="true">
+              +
+            </div>
+          )}
           {state?.phase === "PREPARATION" && (
             <section className="prepare">
-              <div className="eyebrow gold">YOUR CLOCKWORK LIBRARY</div>
-              <h2>Leave a little mystery.</h2>
+              <div className="eyebrow gold">
+                {universe(state.world).theme.toUpperCase()}
+              </div>
+              <h2>{universe(state.world).name}</h2>
               <p>
-                Choose where your key waits. A clue is your only message to
-                visitors.
+                Walk to a marked anchor. Aim, hold E for 0.6s and release to
+                hide your key. Space jumps / ascends; C descends underwater.
               </p>
+              <strong>
+                Key:{" "}
+                {
+                  universe(state.world).anchors[state.workshop?.anchor || 0]
+                    .name
+                }
+              </strong>
+              <p>{nearbyPrompt}</p>
+              <button
+                disabled={!focused || focused.anchor < 0 || me?.ready}
+                onPointerDown={() => interact()}
+                onPointerUp={() => interact(true)}
+              >
+                Hold to hide key at the reticle
+              </button>
               <label>
-                HIDING PLACE
+                MAIN MECHANISM
                 <select
-                  value={anchor}
-                  onChange={(e) => setAnchor(Number(e.target.value))}
+                  aria-label="MAIN MECHANISM"
+                  disabled={me?.ready}
+                  value={state.workshop?.variant || 0}
+                  onChange={(e) =>
+                    room.send("variant", { variant: Number(e.target.value) })
+                  }
                 >
-                  {ANCHORS.map((a, i) => (
-                    <option value={i} key={a}>
-                      {a}
-                    </option>
-                  ))}
+                  <option value={0}>Standard initial state</option>
+                  <option value={1}>Alternate initial state</option>
                 </select>
               </label>
-              <label className="check">
-                <input
-                  type="checkbox"
-                  checked={secret || anchor === 4}
-                  disabled={anchor === 4}
-                  onChange={(e) => setSecret(e.target.checked)}
-                />{" "}
-                Enable the hidden bookshelf
-              </label>
+              <details>
+                <summary>Approved room customization</summary>
+                <output aria-label="Saved artifact positions">
+                  {state.layout
+                    .map((slot) => (slot ? "Far" : "Entrance"))
+                    .join(" · ")}
+                </output>
+                <label>
+                  ARTIFACT
+                  <select
+                    value={prop}
+                    onChange={(e) => setProp(Number(e.target.value))}
+                  >
+                    {[0, 1, 2].map((i) => (
+                      <option key={i} value={i}>
+                        Artifact {i + 1}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  SNAPPED POSITION
+                  <select
+                    aria-label="SNAPPED POSITION"
+                    value={slot}
+                    onChange={(e) => {
+                      setSlot(Number(e.target.value));
+                      setPreviewEdit(true);
+                    }}
+                  >
+                    <option value={0}>Entrance display</option>
+                    <option value={1}>Far display</option>
+                  </select>
+                </label>
+                <button
+                  disabled={me?.ready}
+                  onClick={() => {
+                    room.send("edit", { prop, slot });
+                    setPreviewEdit(false);
+                  }}
+                >
+                  Confirm position
+                </button>
+                <button className="quiet" onClick={() => setPreviewEdit(false)}>
+                  Cancel preview
+                </button>
+                <button
+                  className="quiet"
+                  disabled={me?.ready}
+                  onClick={() => room.send("undo")}
+                >
+                  Undo
+                </button>
+                <button
+                  className="quiet"
+                  disabled={me?.ready}
+                  onClick={() => room.send("reset")}
+                >
+                  Reset world
+                </button>
+                <label>
+                  DECOYS · UP TO TWO
+                  <select
+                    value=""
+                    disabled={me?.ready}
+                    onChange={(e) =>
+                      room.send("decoy", { anchor: Number(e.target.value) })
+                    }
+                  >
+                    <option value="" disabled>
+                      Toggle a harmless decoy
+                    </option>
+                    {universe(state.world).anchors.map((a) => (
+                      <option value={a.anchor} key={a.id}>
+                        {state.decoys.includes(a.anchor)
+                          ? "Remove: "
+                          : "Place: "}
+                        {a.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </details>
               <label>
                 YOUR CLUE
                 <textarea
+                  aria-label="YOUR CLUE"
                   maxLength={180}
                   value={clue}
                   onChange={(e) => setClue(e.target.value)}
                 />
               </label>
               <button
-                onClick={() => room.send("ready", { anchor, secret, clue })}
+                disabled={me?.ready}
+                onClick={() => room.send("ready", { clue })}
               >
-                {me?.ready
-                  ? "Room ready · update settings"
-                  : "Seal your secret →"}
+                {me?.ready ? "Universe sealed" : "Validate & seal universe →"}
               </button>
               <small>
                 All rooms ready advances immediately. Defaults apply at timeout.
@@ -451,7 +633,7 @@ function App() {
                 </div>
                 <h2>
                   {state.owner
-                    ? "The Clockwork Library"
+                    ? universe(state.world).name
                     : "All keys lead home."}
                 </h2>
                 <p>
@@ -500,27 +682,52 @@ function App() {
                     </span>
                   ))}
               </div>
-              <button className="interact" onClick={interact}>
-                <kbd>E</kbd>{" "}
-                {state.owner ? nearbyPrompt : "Enter door / unlock portal"}
+              <button className="interact" onClick={() => interact()}>
+                <kbd>E</kbd> {nearbyPrompt}
               </button>
             </>
           )}
           {state?.phase === "FINISHED" && (
             <section className="results">
-              <div className="eyebrow gold">THE PORTAL HAS CHOSEN</div>
-              <h1>{state.players.find((p) => p.id === state.winner)?.name}</h1>
+              <div className="eyebrow gold">
+                {state.outcome === "draw"
+                  ? "A MYSTERY SHARED"
+                  : "THE PORTAL HAS CHOSEN"}
+              </div>
+              <h1>
+                {state.winner
+                  ? state.players.find((p) => p.id === state.winner)?.name
+                  : "A shared mystery · draw"}
+              </h1>
               <p>
-                Winner of the Atrium ·{" "}
-                {Math.round((state.ended - state.started) / 1000)} seconds
+                {state.outcome === "portal"
+                  ? "Portal unlocked"
+                  : state.outcome === "timeout"
+                    ? "Clear key-count leader at overtime"
+                    : "Tied progress after overtime"}{" "}
+                · {Math.round((state.ended - state.started) / 1000)} seconds
               </p>
               {[...state.players]
                 .sort((a, b) => b.keys.length - a.keys.length)
                 .map((p) => (
                   <div className="score" key={p.id}>
-                    <span>{p.name}</span>
+                    <span>
+                      {p.name}
+                      <small>
+                        {p.id === state.winner
+                          ? state.outcome === "portal"
+                            ? " · Portal Keeper"
+                            : " · Key Leader"
+                          : p.keys.length === state.players.length - 1
+                            ? " · Master Seeker"
+                            : p.inspections > 0
+                              ? " · Explorer"
+                              : " · Worldsmith"}
+                      </small>
+                    </span>
                     <b>
-                      {p.keys.length} / {state.players.length - 1} keys
+                      {p.keys.length} / {state.players.length - 1} keys ·{" "}
+                      {p.inspections} discoveries
                     </b>
                   </div>
                 ))}
@@ -542,7 +749,10 @@ function App() {
           <kbd>S</kbd>
           <kbd>D</kbd> MOVE
         </span>
-        <span>RIGHT MOUSE: LOOK · SHIFT: RUN · SCROLL: ZOOM · R: RECENTER</span>
+        <span>
+          RIGHT MOUSE: LOOK · SHIFT: RUN · SPACE: JUMP / ASCEND · C: DESCEND ·
+          R: RECENTER
+        </span>
         <span>
           <kbd>E</kbd> INTERACT
         </span>
@@ -552,6 +762,7 @@ function App() {
         <output
           className="performance"
           aria-label="Frame performance"
+          data-sampled-at={performance.sampledAt}
           data-fps={performance.fps}
           data-frame-ms={performance.frameMs}
           data-p95={performance.p95}
@@ -574,4 +785,12 @@ function App() {
     </main>
   );
 }
-createRoot(document.getElementById("root")!).render(<App />);
+const root = createRoot(document.getElementById("root")!);
+if (
+  import.meta.env.DEV &&
+  new URLSearchParams(location.search).has("visual-audit")
+) {
+  void import("./VisualAudit").then(({ default: Audit }) =>
+    root.render(<Audit />),
+  );
+} else root.render(<App />);
