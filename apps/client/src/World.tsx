@@ -1,3 +1,6 @@
+import { atmosphere } from "./presentation";
+import { LivingWorld } from "./environments/LivingWorld";
+import { Rewards } from "./Rewards";
 import { WorldInteractions, Targeting } from "./environments/Interactions";
 import { lazy, Suspense, useEffect, useRef, memo } from "react";
 import { useFrame } from "@react-three/fiber";
@@ -78,8 +81,8 @@ function Soundscape({
     tick = useRef(0);
   const me = state?.players.find((p) => p.id === playerId);
   useEffect(() => {
-    void ambienceFor(!!state?.owner);
-  }, [state?.owner]);
+    void ambienceFor(state?.owner ? state.world : "");
+  }, [state?.owner, state?.world]);
   useEffect(() => {
     const count = me?.keys.length || 0;
     if (count > keys.current) void sound("key");
@@ -96,6 +99,8 @@ function Soundscape({
   useFrame((_, dt) => {
     if (!state) return;
     distance.current += motor.current.speed * dt;
+    if (me && !me.grounded && state.world !== "sanctuary") distance.current = 0;
+    if (state.world === "sanctuary") distance.current = 0;
     if (distance.current > (motor.current.speed > 2.6 ? 0.76 : 0.79)) {
       distance.current = 0;
       void sound(state.owner ? "wood" : "stone", 0.3);
@@ -136,6 +141,7 @@ function Decoration({
       ) : (
         <Atrium palette={palette} state={state} playerId={room?.sessionId} />
       )}
+      <LivingWorld state={state} palette={palette} quality={quality} />
       <Dust
         count={GRAPHICS[quality].particles}
         library={!!state?.owner}
@@ -175,7 +181,9 @@ export function World({
   target,
   onTarget,
   onView,
+  controlsEnabled = true,
 }: {
+  controlsEnabled?: boolean;
   state: Snapshot | null;
   room: Connection | null;
   interact: (release?: boolean) => void;
@@ -194,43 +202,40 @@ export function World({
     moving: false,
   });
   const preset = GRAPHICS[quality];
+  const mood = atmosphere(state?.owner ? state.world : "");
   return (
     <>
-      <Controls
-        state={state}
-        room={room}
-        interact={interact}
-        motor={motor}
-        onView={onView}
-      />
+      {controlsEnabled && (
+        <Controls
+          state={state}
+          room={room}
+          interact={interact}
+          motor={motor}
+          onView={onView}
+        />
+      )}
       <Measurement onSample={onSample} />
+      <Rewards state={state} playerId={room?.sessionId} />
       <Targeting state={state} onTarget={onTarget} playerId={room?.sessionId} />
       <Soundscape state={state} motor={motor} playerId={room?.sessionId} />
-      <color
-        attach="background"
-        args={[
-          state?.world === "sanctuary"
-            ? "#123f4d"
-            : state?.world === "observatory"
-              ? "#0b0e28"
-              : state?.world === "manor"
-                ? "#241b2a"
-                : "#10181d",
-        ]}
-      />
+      <color attach="background" args={[mood.sky]} />
       <fog
         attach="fog"
-        args={["#18232a", state?.owner ? 14 : 28, preset.far]}
+        args={[
+          mood.fog,
+          state?.world === "sanctuary" ? 5 : state?.owner ? 14 : 28,
+          preset.far,
+        ]}
       />
       <ambientLight intensity={state?.owner ? 0.35 : 0.22} />
       <hemisphereLight
-        args={["#a8bdc9", "#4a3225", state?.owner ? 0.75 : 0.55]}
+        args={[mood.fill, mood.ground, state?.owner ? 0.75 : 0.55]}
       />
       <directionalLight
         key={quality}
         position={state?.owner ? [4, 6.5, 7] : [4, 11, 7]}
-        color="#ffe5bc"
-        intensity={2.2}
+        color={mood.sun}
+        intensity={mood.intensity}
         castShadow={preset.shadows}
         shadow-mapSize={[preset.shadowSize, preset.shadowSize]}
         shadow-camera-left={-17}
@@ -286,6 +291,7 @@ export function World({
           <Character
             key={p.id}
             player={p}
+            world={state?.owner ? state.world : ""}
             motor={p.id === room?.sessionId ? motor : undefined}
           />
         ))}

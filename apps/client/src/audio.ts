@@ -1,4 +1,10 @@
+import type { UniverseId } from "../../../packages/shared/src/universes";
 type Sound =
+  | "observatory"
+  | "sanctuary"
+  | "forge"
+  | "manor"
+  | "garden"
   | "stone"
   | "wood"
   | "key"
@@ -81,8 +87,8 @@ export async function sound(name: Sound, gain = 0.7, pan = 0) {
 }
 let ambientId = "";
 let ambientGeneration = 0;
-export async function ambienceFor(library: boolean) {
-  const id = library ? "library" : "hall";
+export async function ambienceFor(world: UniverseId | "") {
+  const id = world || "hall";
   if (id === ambientId || !context) return;
   ambientId = id;
   const gen = ++ambientGeneration;

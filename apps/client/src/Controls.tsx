@@ -3,6 +3,7 @@ import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { type Snapshot } from "../../../packages/shared/src/world";
 import type { Connection } from "./network";
+import { transitionIdentity } from "./presentation";
 import { shortestAngle } from "./motion";
 import { reducedMotion } from "./settings";
 export interface Motor {
@@ -38,6 +39,10 @@ export function Controls({
     scan = useRef(0),
     ray = useRef(new THREE.Raycaster());
   callback.current = interact;
+  const recenter = useRef(false);
+  const opening = useRef((() => {
+    try { return sessionStorage.getItem("atrium:intro") ? 6 : 0; } catch { return 0; }
+  })());
   const viewTick = useRef(0);
   const sequence = useRef(0);
   const actionSeen = useRef(0),
@@ -63,7 +68,8 @@ export function Controls({
         e.preventDefault();
       keys.current.add(e.code);
       if (e.code === "KeyE" && !e.repeat) callback.current();
-      if (e.code === "KeyR") angle.current = motor.current.yaw + Math.PI;
+      if (e.code === "KeyR") recenter.current = true;
+      if (e.code === "Escape") opening.current = 6;
     };
     const up = (e: KeyboardEvent) => {
       keys.current.delete(e.code);
@@ -79,6 +85,7 @@ export function Controls({
     };
     const mouse = (e: MouseEvent) => {
       if (e.buttons === 2) {
+        recenter.current = false;
         angle.current -= e.movementX * 0.0035;
         pitch.current = THREE.MathUtils.clamp(
           pitch.current + e.movementY * 0.0025,
@@ -97,6 +104,8 @@ export function Controls({
         );
       }
     };
+    const skipIntro = () => { opening.current = 6; };
+    window.addEventListener("atrium:skip-intro", skipIntro);
     window.addEventListener("keydown", down);
     window.addEventListener("keyup", up);
     window.addEventListener("blur", clear);
@@ -104,6 +113,7 @@ export function Controls({
     window.addEventListener("mousemove", mouse);
     window.addEventListener("wheel", wheel, { passive: false });
     return () => {
+      window.removeEventListener("atrium:skip-intro", skipIntro);
       window.removeEventListener("keydown", down);
       window.removeEventListener("keyup", up);
       window.removeEventListener("blur", clear);
@@ -115,12 +125,24 @@ export function Controls({
   useFrame(({ camera, clock, scene }, rawDt) => {
     const dt = Math.min(rawDt, 0.05);
     if (!room) {
-      const target = new THREE.Vector3(9.5, 5.2, 11.7);
+      opening.current = Math.min(6, opening.current + dt);
+      const t = reducedMotion() ? 1 : opening.current / 6;
+      const eased = t * t * (3 - 2 * t);
+      const target = new THREE.Vector3(
+        3.5 + eased * 6,
+        3.2 + eased * 2,
+        15 - eased * 3.3,
+      );
       camera.position.lerp(target, 1 - Math.exp(-dt * 3));
       camera.lookAt(0, 2.4, 0);
       return;
     }
     if (!local) return;
+    if (recenter.current) {
+      const turn = shortestAngle(angle.current, motor.current.yaw + Math.PI);
+      angle.current += turn * (1 - Math.exp(-dt * 7));
+      if (Math.abs(turn) < 0.01) recenter.current = false;
+    }
     angle.current +=
       (+keys.current.has("ArrowLeft") - +keys.current.has("ArrowRight")) *
       dt *
@@ -134,7 +156,13 @@ export function Controls({
       1,
     );
 
-    const key = state!.phase + state!.owner + state!.round;
+    const key = transitionIdentity(
+      state!.epoch,
+      state!.owner,
+      state!.phase,
+      state!.round,
+    );
+    const changed = tag.current !== key;
     if (tag.current !== key) {
       tag.current = key;
       Object.assign(motor.current, {
@@ -210,10 +238,13 @@ export function Controls({
         p.z + Math.cos(angle.current) * distance.current,
       );
     const direction = target.clone().sub(eye).normalize();
+    const cameraRight = new THREE.Vector3()
+      .crossVectors(direction, camera.up)
+      .normalize();
     let safe = eye.distanceTo(target);
     for (const offset of [-0.18, 0, 0.18]) {
       ray.current.set(
-        eye.clone().add(new THREE.Vector3(offset, 0, 0)),
+        eye.clone().addScaledVector(cameraRight, offset),
         direction,
       );
       ray.current.near = 0.05;
@@ -223,7 +254,10 @@ export function Controls({
     }
     target.copy(eye).addScaledVector(direction, safe);
     const blocked = camera.position.distanceTo(eye) > safe + 0.1;
-    camera.position.lerp(target, blocked ? 1 : 1 - Math.exp(-dt * 12));
+    camera.position.lerp(
+      target,
+      blocked || changed ? 1 : 1 - Math.exp(-dt * 12),
+    );
     camera.position.y = Math.max(0.4, camera.position.y);
     camera.lookAt(eye);
     if (camera instanceof THREE.PerspectiveCamera) {

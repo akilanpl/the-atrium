@@ -1,3 +1,7 @@
+import { PortalVeil } from "./PortalVeil";
+import { DoorCrest } from "./DoorCrest";
+import { reducedMotion } from "../settings";
+import { useEffect } from "react";
 import {
   UNIVERSES,
   door,
@@ -30,7 +34,9 @@ function Portal({
   const won = state?.phase === "FINISHED";
   useFrame(({ clock }, dt) => {
     if (moving.current)
-      moving.current.rotation.z += dt * (eligible ? 0.12 : 0.025);
+      moving.current.rotation.z += reducedMotion()
+        ? 0
+        : dt * (eligible || won ? 0.12 : 0.025);
     if (energy.current) {
       const mat = energy.current.material as THREE.MeshStandardMaterial;
       mat.opacity = THREE.MathUtils.damp(
@@ -39,12 +45,12 @@ function Portal({
         4,
         dt,
       );
-      mat.emissiveIntensity = eligible ? 1.7 : 0.5;
+      mat.emissiveIntensity = won ? 2.5 : 0.5 + (me?.keys.length || 0) * 0.2;
     }
     if (light.current)
       light.current.intensity = THREE.MathUtils.damp(
         light.current.intensity,
-        eligible ? 35 : 12,
+        won ? 45 : 12 + (me?.keys.length || 0) * 4,
         3,
         dt,
       );
@@ -65,6 +71,14 @@ function Portal({
         </mesh>
       ))}
       <group position={[0, 3.05, 0]}>
+        <PortalVeil
+          charge={
+            won
+              ? 1
+              : (me?.keys.length || 0) /
+                Math.max(1, (state?.players.length || 6) - 1)
+          }
+        />
         <mesh material={palette.stone} castShadow>
           <torusGeometry args={[2.5, 0.36, 12, 80]} />
         </mesh>
@@ -152,7 +166,13 @@ function Portal({
       />
       <Label
         position={[0, 6.6, 0]}
-        text={eligible ? "THE WAY IS OPEN" : "THE CONCORDANCE GATE"}
+        text={
+          won
+            ? "THE CONCORDANCE IS COMPLETE"
+            : eligible
+              ? "THE WAY IS OPEN"
+              : "THE CONCORDANCE GATE"
+        }
         wide
       />
     </group>
@@ -177,6 +197,7 @@ export default function Atrium({
       }),
     [],
   );
+  useEffect(() => () => dark.dispose(), [dark]);
   const matrix = new THREE.Object3D();
   const tilePositions: [number, number][] = [];
   for (let x = -16; x <= 16; x += 2)
@@ -273,7 +294,12 @@ export default function Atrium({
         );
       })}
       {/* Barrel-vault ribs cross beneath a monumental coffered dome. */}
-      <mesh position={[0, 10.5, 0]} material={palette.stone}>
+      <mesh position={[0, 10.5, 0]}>
+        <meshStandardMaterial
+          color="#414544"
+          roughness={0.86}
+          side={THREE.BackSide}
+        />
         <sphereGeometry args={[18, 48, 20, 0, Math.PI * 2, 0, Math.PI / 2]} />
       </mesh>
       {[0, Math.PI / 4, Math.PI / 2, (Math.PI * 3) / 4].map((a) => (
@@ -302,6 +328,7 @@ export default function Atrium({
             position={[Math.sin(a) * 10, 0, -Math.cos(a) * 10]}
             rotation={[0, -a, 0]}
           >
+            <DoorCrest id={u.id} state={state} playerId={playerId} />
             <Arch
               position={[0, 0, 0]}
               width={3.6}

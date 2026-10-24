@@ -13,25 +13,30 @@ function Box({
   size,
   color,
   metal = false,
+  material,
 }: {
   at: [number, number, number];
   size: [number, number, number];
   color: string;
   metal?: boolean;
+  material?: THREE.Material;
 }) {
   return (
     <mesh
       position={at}
+      material={material}
       castShadow
       receiveShadow
       userData={{ cameraBlock: true }}
     >
       <boxGeometry args={size} />
-      <meshStandardMaterial
-        color={color}
-        metalness={metal ? 0.7 : 0.15}
-        roughness={metal ? 0.3 : 0.8}
-      />
+      {!material && (
+        <meshStandardMaterial
+          color={color}
+          metalness={metal ? 0.7 : 0.15}
+          roughness={metal ? 0.3 : 0.8}
+        />
+      )}
     </mesh>
   );
 }
@@ -114,18 +119,6 @@ export default function UniverseEnvironment({
             ))}
             <Orb at={[0, 0, 0]} color="#e8dcb1" r={0.4} />
           </group>
-          {Array.from({ length: 60 }, (_, i) => (
-            <Orb
-              key={i}
-              at={[
-                Math.sin(i * 13.7) * 18,
-                7 + (i % 9),
-                Math.cos(i * 9.3) * 18,
-              ]}
-              color={i % 2 ? "#b4b5e9" : "#e1d8a6"}
-              r={0.025}
-            />
-          ))}
         </>
       )}
       {u.id === "sanctuary" && (
@@ -341,21 +334,42 @@ export default function UniverseEnvironment({
         </>
       )}
       {mechanismSolids(u.id, s).map((b) => (
-        <Box
-          key={b.id}
-          at={[b.x, b.y + b.h / 2, b.z]}
-          size={[b.w, b.h, b.d]}
-          color={
-            b.id === "carriage"
-              ? "#a7a7b8"
-              : b.id.includes("platform")
-                ? u.color
+        <group key={b.id}>
+          <Box
+            at={[b.x, b.y + b.h / 2, b.z]}
+            size={[b.w, b.h, b.d]}
+            color={u.color}
+            material={
+              u.id === "forge"
+                ? palette.dark
                 : u.id === "manor"
-                  ? "#5d425e"
-                  : "#647077"
-          }
-          metal={u.id === "forge"}
-        />
+                  ? palette.wood
+                  : palette.stone
+            }
+          />
+          <mesh
+            position={[b.x, b.y + b.h - 0.05, b.z]}
+            material={palette.brass}
+          >
+            <boxGeometry args={[b.w + 0.025, 0.035, b.d + 0.025]} />
+          </mesh>
+          <mesh position={[b.x, b.y + 0.06, b.z]} material={palette.brass}>
+            <boxGeometry args={[b.w + 0.025, 0.035, b.d + 0.025]} />
+          </mesh>
+          <mesh
+            position={[b.x, b.y + b.h + 0.006, b.z]}
+            material={u.id === "forge" ? palette.brass : palette.marble}
+            receiveShadow
+          >
+            <boxGeometry
+              args={[
+                Math.max(0.02, b.w - 0.08),
+                0.012,
+                Math.max(0.02, b.d - 0.08),
+              ]}
+            />
+          </mesh>
+        </group>
       ))}
       {u.anchors.map((a) => (
         <group key={a.id} position={[a.x, a.y, a.z]}>

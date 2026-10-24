@@ -4,7 +4,7 @@ import {
   universe,
   objects,
 } from "../../../packages/shared/src/universes";
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useState, useCallback, useEffect, useRef } from "react";
 import { createRoot } from "react-dom/client";
 import { Canvas } from "@react-three/fiber";
 import { World, type PerformanceSample } from "./World";
@@ -22,6 +22,7 @@ import * as THREE from "three";
 import { admit, resume, type Connection } from "./network";
 import { avatarId, type Snapshot } from "../../../packages/shared/src/world";
 import "./style.css";
+import { Cinematic } from "./Cinematic";
 import { Journey } from "./Journey";
 function recovery() {
   try {
@@ -42,7 +43,9 @@ function remember(value: string | null) {
 const ignoreView = () => {};
 function App() {
   const [showJourney, setShowJourney] = useState(
-    !recovery() && !location.hash.includes("invite="),
+    new URLSearchParams(location.search).has("journey") &&
+      !recovery() &&
+      !location.hash.includes("invite="),
   );
   const [renderActive, setRenderActive] = useState(true);
   const [navigation, setNavigation] = useState(false);
@@ -159,18 +162,26 @@ function App() {
       setBusy(false);
     }
   };
+  const heldTarget = useRef("");
+  useEffect(() => {
+    heldTarget.current = "";
+  }, [room, state?.epoch, state?.owner, state?.phase]);
   const focused = state?.world
     ? objects(state.world).find((o) => o.id === target)
     : null;
   const interact = useCallback(
     (release = false) => {
-      if (!room || !state || !target) return;
+      if (!room || !state) return;
+      const actionTarget = release ? heldTarget.current : target;
+      if (release) heldTarget.current = "";
+      if (!actionTarget) return;
       if (
         state.phase === "PREPARATION" &&
         state.world &&
-        objects(state.world).find((o) => o.id === target)?.anchor !== -1
+        objects(state.world).find((o) => o.id === actionTarget)?.anchor !== -1
       ) {
-        room.send(release ? "place" : "hide", { object: target });
+        if (!release) heldTarget.current = actionTarget;
+        room.send(release ? "place" : "hide", { object: actionTarget });
         return;
       }
       if (release) return;
@@ -211,7 +222,7 @@ function App() {
       onContextMenu={(e) => e.preventDefault()}
     >
       <Canvas
-        frameloop={!renderActive ? "never" : room ? "always" : "demand"}
+        frameloop={!renderActive ? "never" : "always"}
         shadows={GRAPHICS[quality].shadows}
         camera={{
           position: [9.5, 5.2, 11.7],
@@ -240,6 +251,7 @@ function App() {
           onSample={setPerformance}
         />
       </Canvas>
+      <Cinematic state={state} />
       <Settings
         value={quality}
         onChange={setQuality}
@@ -773,4 +785,12 @@ function App() {
     </main>
   );
 }
-createRoot(document.getElementById("root")!).render(<App />);
+const root = createRoot(document.getElementById("root")!);
+if (
+  import.meta.env.DEV &&
+  new URLSearchParams(location.search).has("visual-audit")
+) {
+  void import("./VisualAudit").then(({ default: Audit }) =>
+    root.render(<Audit />),
+  );
+} else root.render(<App />);
