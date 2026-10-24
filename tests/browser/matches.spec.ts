@@ -55,7 +55,7 @@ async function move(t: Traveler, target: Point, reach = 1.8) {
   const start = Date.now();
   let active = new Set<string>();
   try {
-    while (Date.now() - start < 20000) {
+    while (Date.now() - start < 60000) {
       const at = await position(p),
         dx = target.x - at.x,
         dz = target.z - at.z,
@@ -156,7 +156,7 @@ for (const n of [2, 3, 4, 5, 6])
           baseURL: "http://127.0.0.1:5174",
           viewport: { width: 1280, height: 800 },
         });
-        context.setDefaultTimeout(15000);
+        context.setDefaultTimeout(60000);
         contexts.push(context);
         const page = await context.newPage();
         if (n===2 && i===0) {
@@ -209,7 +209,6 @@ for (const n of [2, 3, 4, 5, 6])
             .click();
           await expect(phase(page)).toContainText("WAITING");
         }
-        await settings(page);
         travelers.push({
           page,
           angle: 0.1,

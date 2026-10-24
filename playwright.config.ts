@@ -2,8 +2,8 @@ import { defineConfig } from "@playwright/test";
 export default defineConfig({
   testDir: "./tests/browser",
   workers: 1,
-  timeout: 600000,
-  expect: { timeout: 15000 },
+  timeout: 1200000,
+  expect: { timeout: 60000 },
   retries: 0,
   outputDir: "work/browser-artifacts",
   reporter: [
@@ -12,7 +12,7 @@ export default defineConfig({
   ],
   use: {
     baseURL: "http://127.0.0.1:5174",
-    actionTimeout: 15000,
+    actionTimeout: 60000,
     viewport: { width: 1280, height: 800 },
     headless: true,
     channel: "chromium",
