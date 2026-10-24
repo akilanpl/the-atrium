@@ -154,15 +154,18 @@ for (const n of [2, 3, 4, 5, 6])
     let profiler: CDPSession | undefined;
     try {
       let invite = "";
+      // The app's guest identity/recovery is sessionStorage per top-level tab,
+      // never cookies/localStorage. One context models real browser tabs and lets
+      // visibility pause background WebGL instead of six foreground GPU windows.
+      const context = await browser.newContext({
+        baseURL: "http://127.0.0.1:5174",
+        viewport: { width: 1280, height: 800 },
+        storageState: {cookies:[],origins:[{origin:"http://127.0.0.1:5174",localStorage:[{name:"atrium:quality",value:"LOW"}]}]},
+      });
+      context.setDefaultTimeout(60000);
+      contexts.push(context);
+      const credentials = new Set<string>();
       for (let i = 0; i < n; i++) {
-        const context = await browser.newContext({
-          baseURL: "http://127.0.0.1:5174",
-          viewport: { width: 1280, height: 800 },
-          // Public graphics preference only; no credentials or competitive state.
-          storageState: { cookies: [], origins: [{origin:"http://127.0.0.1:5174",localStorage:[{name:"atrium:quality",value:"LOW"}]}] },
-        });
-        context.setDefaultTimeout(60000);
-        contexts.push(context);
         const page = await context.newPage();
         if (n===2 && i===0) {
           profiler = await context.newCDPSession(page);
@@ -214,7 +217,11 @@ for (const n of [2, 3, 4, 5, 6])
             .click();
           await expect(phase(page)).toContainText("WAITING");
         }
-        observed.push("joined:"+i);
+        const credential=await page.evaluate(()=>sessionStorage.getItem('atrium-resume'));
+        expect(credential).toBeTruthy();
+        credentials.add(credential!);
+        expect(credentials.size).toBe(i+1);
+        observed.push("joined-independent-tab:"+i);
         travelers.push({
           page,
           angle: 0.1,
