@@ -203,7 +203,7 @@ function App() {
       onContextMenu={(e) => e.preventDefault()}
     >
       <Canvas
-        frameloop={renderActive ? "always" : "never"}
+        frameloop={!renderActive ? "never" : room ? "always" : "demand"}
         shadows={GRAPHICS[quality].shadows}
         camera={{
           position: [9.5, 5.2, 11.7],
