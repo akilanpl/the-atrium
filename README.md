@@ -2,6 +2,28 @@
 
 A procedural 3D multiplayer mystery for 2–4 people. Hide a key in your Clockwork Library, read rivals’ clues, search their universes, and unlock the central portal.
 
+## Authoritative multiplayer architecture
+
+The browser uses Three.js to render a procedural library and Colyseus to exchange player intent with a Node.js server. The [game engine](apps/server/src/game.ts) owns phase transitions, clues, key ownership, round assignments and the winner. Keeping that logic separate from transport makes game rules testable without a browser or WebGL context.
+
+```mermaid
+flowchart LR
+    Player[Player controls] --> Client[Three.js client]
+    Client -->|Validated intent messages| Server[Colyseus room and admission]
+    Server --> Game[Authoritative game state]
+    Game --> View[Per-player presentation]
+    View -->|Personalized JSON snapshots at 20 Hz| Client
+    Game --> Deadline[Server phase deadlines and tie-breaking]
+```
+
+Clients receive personalized views rather than every player's hidden answer. Preparation, one visit per rival and the finale advance against server deadlines; collecting a key twice does not duplicate inventory. Disconnected seats retain their rooms and searchable secrets during the match, and host authority transfers. The rendering client interpolates presentation; it does not decide whether a key was earned or a portal unlocked.
+
+## Admission and session recovery
+
+Server-issued invites carry cryptographically random 256-bit bearer tokens in `#invite=…` fragments. Admission grants, seat identities and recovery tokens are also high-entropy values. Hosts can rotate invites, lock joining and kick seats; kicking rotates the invite. Invites expire after 30 minutes and rooms after one hour. Unexpected disconnects allow a 20-second recovery window; refresh recovery is tab-scoped in sessionStorage. Explicit leave, kick or flooding ends the session. Credentials are kept out of persistent preferences.
+
+Sessions are in memory and disappear on server restart. The current default `development` branch supports 2–4 players and Colyseus 0.17 personalized JSON snapshots, not schema deltas. Server validation, input rate limits and private state projection protect the game boundary. Representative production load and public hosting acceptance require separate verification.
+
 ## Run
 
 Requires Node 22.12+ and npm.
@@ -33,18 +55,20 @@ Short mode uses 1.5s preparation, 2.5s exploration rounds, and a 5s finale. For 
 
 Manual browser check: use two tabs, verify names and motion, set different clues, mark both ready, inspect the wrong object, open the hidden shelf, collect one key twice (inventory must remain one), wait for finale, approach center and press E, then replay. In three/four tabs check each round changes owner and never visits your own room.
 
-## Limitations
+## Rendering and verification
 
-In-memory sessions disappear on restart. Guest credential admission and a 20-second recovery grace are implemented; persistent accounts and mobile controls are absent. Local synthesized ambience/effects start after a user gesture; Settings controls graphics, volume and mute. Procedural collision uses axis-aligned major furniture and room boundaries; no rigid-body physics. Snapshots are personalized JSON at 20 Hz rather than schema deltas. Production hosting validation, representative load testing and accessibility beyond the HUD remain future work.
+Local synthesized ambience/effects start after a user gesture; Settings controls graphics, volume and mute. Procedural collision uses axis-aligned major furniture and room boundaries. The implementation targets keyboard/mouse desktop play; mobile controls and accessibility beyond the HUD need additional acceptance.
 
-The current Colyseus 0.17 dependency audit reports zero known vulnerabilities. Invites, admission grants, seat identities and recovery tokens use cryptographically random 256-bit values; server-only authority gates seat creation.
+The server tests separate [game rules](apps/server/src/game.test.ts), [network behavior](apps/server/src/network.test.ts), [personalized presentation](apps/server/src/presentation.test.ts), [admission](apps/server/src/admission.test.ts) and [security](apps/server/src/security.test.ts). The manual checks above complement these tests with rendered interaction. Run `npm run release:check` before release; dependency audit results are time-specific checks, not a permanent security guarantee.
 
 ## Art and assets
 
 The game ships local, licensed human GLBs, PBR surfaces/HDR, scanned library props and original audio. Normal startup does not require Blender, asset accounts or asset downloads. See `docs/ART_DIRECTION.md`, `docs/CHARACTER_PIPELINE.md`, `docs/ASSET_CREDITS.md` and `docs/PERFORMANCE.md` for provenance, rebuilding and measured limits.
 
-## Master Prompt 03 — private admission and release controls
+## Engineering references
 
-Invites are now server-issued high-entropy links with `#invite=…` fragments, replacing the old six-character query code flow. Create → copy invitation → friend opens or pastes the token → join. Hosts can replace invites, lock joins and kick; kick also replaces the invite. Invites expire after 30 minutes, rooms after one hour. Unexpected disconnects retain the original seat for 20 seconds; refresh uses tab-scoped sessionStorage recovery. Explicit leave/kick/flood ends the session. Preferences remain in localStorage; bearer credentials do not.
+[Art direction](docs/ART_DIRECTION.md) · [Character pipeline](docs/CHARACTER_PIPELINE.md) · [Asset credits](docs/ASSET_CREDITS.md) · [Performance evidence](docs/PERFORMANCE.md) · [Security audit](docs/SECURITY_AUDIT.md) · [Security architecture](docs/SECURITY_ARCHITECTURE.md) · [Privacy](docs/PRIVACY.md) · [Deployment security](docs/DEPLOYMENT_SECURITY.md) · [Release checklist](docs/PUBLIC_RELEASE_CHECKLIST.md)
 
-Colyseus server/SDK are migrated together to 0.17 with exact versions. Run `npm run release:check` before release. Current audit supersedes earlier dependency notes: zero known npm vulnerabilities at the latest check. See `docs/SECURITY_AUDIT.md`, `SECURITY_ARCHITECTURE.md`, `PRIVACY.md`, `DEPLOYMENT_SECURITY.md`, `INCIDENT_RESPONSE.md` and `PUBLIC_RELEASE_CHECKLIST.md`. Existing historical handoffs describe previous versions. No public hosting is authorized or configured by this change.
+The checked-in reverse proxy and release guidance describe the intended HTTPS/WSS boundary. They do not establish a verified public deployment.
+
+Documentation basis: [`e651d07`](https://github.com/akilanpl/the-atrium/tree/e651d07e3d9670109121d6c95083c797015ff5de). Recorded validation retains its original source and environment scope.
